@@ -27,6 +27,8 @@ class PhysicsEngine:
             # Prise au vent (cos(angle) car si angle=0, cos=1 -> force max)
             # Si angle=pi/2 (horizontal), cos=0 -> pas de prise au vent horizontal (idéalisé)
             effective_area = math.cos(abs_angle)
+            if getattr(segment, 'has_leaf', False):
+                effective_area *= 5.0 # Les feuilles offrent une grande prise au vent
             
             # Atténuation simplifiée en fonction de la profondeur de la branche
             depth = 1
@@ -49,23 +51,20 @@ class PhysicsEngine:
         # M_rappel = - C1 * (theta - base_angle)
         restoring_torque = -segment.stiffness * (segment.theta - segment.base_angle)
         
-        # 2. Frottements visqueux (Amortissement) : freine le mouvement
-        # M_frottement = - C2 * omega
-        damping_torque = -segment.damping * segment.omega
+        # 2. (L'amortissement est maintenant géré de manière implicite dans update_segment pour la stabilité)
         
         # 3. Action du vent
         wind_force = self.get_wind_force(segment, current_time, **wind_params)
         # Moment du vent = Force * Bras de levier (approximé à la longueur du segment / 2)
         wind_torque = wind_force * (segment.length / 2.0)
         
-        # 4. Couplage avec les enfants (Les enfants "tirent" sur le parent quand ils plient)
+        # 4. Couplage avec les enfants (3ème loi de Newton : Action/Réaction)
+        # L'enfant exerce sur le parent le couple opposé à son propre couple de rappel
         coupling_torque = 0.0
-        coupling_factor = segment.stiffness * 0.5
         for child in segment.children:
-            # Si l'enfant s'écarte de son angle de base, il exerce une force sur le parent
-            coupling_torque += coupling_factor * (child.theta - child.base_angle)
+            coupling_torque += child.stiffness * (child.theta - child.base_angle)
             
-        return restoring_torque + damping_torque + wind_torque + coupling_torque
+        return restoring_torque + wind_torque + coupling_torque
 
     def update_segment(self, segment, current_time, wind_params):
         """Met à jour la physique d'un segment via Euler."""
@@ -73,12 +72,13 @@ class PhysicsEngine:
         total_torque = self.compute_torque(segment, current_time, wind_params)
         
         # PFD (Moment Cinétique) : I * alpha = Somme(Moments)
-        # On approxime I (Moment d'inertie) proportionnel à la masse
-        # alpha = accélération angulaire
-        angular_accel = total_torque / segment.mass
+        # alpha = accélération angulaire (sans l'amortissement)
+        angular_accel = total_torque / segment.inertia
         
-        # Intégration d'Euler
-        segment.omega += angular_accel * self.dt
+        # Intégration d'Euler semi-implicite avec amortissement implicite
+        # Cela garantit une stabilité absolue même avec un fort amortissement
+        damping_factor = segment.damping / segment.inertia
+        segment.omega = (segment.omega + angular_accel * self.dt) / (1.0 + damping_factor * self.dt)
         segment.theta += segment.omega * self.dt
         
         # Mise à jour récursive des enfants
