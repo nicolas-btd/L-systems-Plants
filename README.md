@@ -9,16 +9,22 @@ Plutôt que de modéliser des arbres de manière arbitraire, nous utilisons les 
 
 ## 2. Architecture du Projet
 
-Le projet sera construit de manière incrémentale, chaque étape validant un principe physique ou mathématique :
+Le projet sera construit de manière très structurée et incrémentale, en validant chaque palier de complexité avant de passer au suivant :
 
-1. **Génération par L-Systems** : Création de la structure topologique des arbres.
-2. **Moteur Physique (PFD & Euler)** : Application des forces (raideur, amortissement visqueux, vent, couplage inter-branches) sur un réseau de tiges.
-3. **Simulation Complète** : Couplage de la physique et de la géométrie, avec un vent oscillant temporellement.
-4. **Visualisation (Matplotlib / Animation)** : Affichage dynamique de la simulation.
+1. **Arbre Isolé (2D) avec Vent** :
+   - Génération d'un arbre simple en 2D via L-Systems.
+   - Application du moteur physique (Euler) pour simuler la torsion des branches sous l'effet du vent.
+   - Visualisation et affinage des paramètres (raideur, masse, amortissement).
+2. **Arbre Isolé (3D) Réaliste** :
+   - Passage de la génération et de la physique en 3 dimensions.
+   - Amélioration du réalisme visuel et mécanique (prise au vent selon l'orientation spatiale 3D).
+3. **Modélisation d'une Forêt** :
+   - Instanciation de multiples arbres.
+   - Prise en compte de la dynamique des fluides simplifiée (atténuation du vent par le feuillage des premiers arbres) et des collisions/couplages.
 
 ---
 
-## 3. Étape Actuelle : Les L-Systems
+## 3. Étape Actuelle : 2D - Moteur L-Systems
 *(En cours de développement)*
 
-Les systèmes de Lindenmayer reposent sur un alphabet, un axiome de départ, et des règles de réécriture. À chaque itération, l'axiome grandit pour former une chaîne complexe qui sera ensuite traduite en instructions géométriques (Turtle Graphics).
+La première brique est le moteur de génération procédurale. Il repose sur un axiome de départ et des règles de réécriture. La chaîne complexe générée est ensuite traduite en un graphe de noeuds géométriques (segments) via une interprétation type "Turtle Graphics".
