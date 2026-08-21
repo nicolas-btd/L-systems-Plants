@@ -5,6 +5,7 @@ Ce module permet de générer des structures arborescentes (chaînes de caractè
 à partir d'un axiome et de règles de réécriture, puis de traduire ces chaînes
 en une structure de graphe (noeuds / segments) via une interprétation type "Turtle".
 """
+import random
 
 class Segment:
     """
@@ -24,6 +25,7 @@ class Segment:
         # L'angle actuel de la branche (utilisé plus tard par le moteur physique)
         self.theta = base_angle
         self.omega = 0.0 # Vitesse angulaire
+        self.has_leaf = False # Indique si le segment porte une feuille
         
         if self.parent is not None:
             self.parent.add_child(self)
@@ -61,7 +63,7 @@ class LSystem:
         return current
 
 
-def parse_to_graph(sentence, angle_increment, segment_length=1.0):
+def parse_to_graph(sentence, angle_increment, segment_length=1.0, noise=0.0):
     """
     Interprète une chaîne générée par un L-System (Turtle Graphics)
     et la convertit en un graphe de `Segment`.
@@ -85,6 +87,10 @@ def parse_to_graph(sentence, angle_increment, segment_length=1.0):
     
     for char in sentence:
         if char in ('F', 'A', 'B'):
+            # Léger bruit sur l'axe pour un aspect organique
+            if noise > 0:
+                current_angle += random.uniform(-noise/3, noise/3)
+                
             # On calcule l'angle absolu du parent pour déduire l'angle relatif
             parent_abs_angle = current_segment.get_absolute_angle() if current_segment else 0.0
             relative_angle = current_angle - parent_abs_angle
@@ -98,9 +104,12 @@ def parse_to_graph(sentence, angle_increment, segment_length=1.0):
             current_segment = new_segment
             
         elif char == '+':
-            current_angle += angle_increment
+            current_angle += angle_increment + random.uniform(-noise, noise)
         elif char == '-':
-            current_angle -= angle_increment
+            current_angle -= angle_increment + random.uniform(-noise, noise)
+        elif char == 'X':
+            if current_segment is not None:
+                current_segment.has_leaf = True
         elif char == '[':
             # On empile l'état courant
             state_stack.append((current_segment, current_angle))
