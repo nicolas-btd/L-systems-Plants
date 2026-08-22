@@ -45,12 +45,18 @@ class LSystem3D:
     def generate(self, iterations):
         current = self.axiom
         for _ in range(iterations):
-            next_string = "".join([self.rules.get(c, c) for c in current])
+            next_string = ""
+            for c in current:
+                rule = self.rules.get(c, c)
+                if isinstance(rule, list):
+                    next_string += random.choice(rule)
+                else:
+                    next_string += rule
             current = next_string
         return current
 
 
-def parse_to_graph_3d(sentence, angle_increment, segment_length=1.0, noise=0.0):
+def parse_to_graph_3d(sentence, angle_increment, segment_length=1.0, noise=0.0, tropism_vector=None, tropism_factor=0.0):
     """
     Interprète une chaîne générée par un L-System en 3D (Turtle Graphics spatiale).
     H (Heading) = X axis, L (Left) = Y axis, U (Up) = Z axis.
@@ -80,6 +86,28 @@ def parse_to_graph_3d(sentence, angle_increment, segment_length=1.0, noise=0.0):
     
     for char in sentence:
         if char in ('F', 'A', 'B'):
+            # Tropisme (Gravité ou Phototropisme)
+            if tropism_vector is not None and tropism_factor > 0:
+                H = current_R[:, 0]
+                T = np.array(tropism_vector, dtype=float)
+                T_norm = np.linalg.norm(T)
+                if T_norm > 1e-6:
+                    T = T / T_norm
+                    axis = np.cross(H, T)
+                    norm_axis = np.linalg.norm(axis)
+                    if norm_axis > 1e-6:
+                        axis = axis / norm_axis
+                        # L'angle de courbure (e * sin(alpha))
+                        angle = tropism_factor * norm_axis * segment_length
+                        # Formule de Rodrigues pour plier l'axe
+                        K = np.array([
+                            [0, -axis[2], axis[1]],
+                            [axis[2], 0, -axis[0]],
+                            [-axis[1], axis[0], 0]
+                        ])
+                        R_tropism = np.eye(3) + np.sin(angle) * K + (1 - np.cos(angle)) * (K @ K)
+                        current_R = R_tropism @ current_R
+
             # Léger bruit directionnel pour la nature organique
             if noise > 0:
                 current_R = current_R @ R_U(random.uniform(-noise/3, noise/3))
