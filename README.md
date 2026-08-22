@@ -24,7 +24,12 @@ Le projet sera construit de manière très structurée et incrémentale, en vali
 
 ---
 
-## 3. Étape Actuelle : 2D - Moteur L-Systems
+## 3. Étape Actuelle : Modélisation d'une Forêt
 *(En cours de développement)*
 
-La première brique est le moteur de génération procédurale. Il repose sur un axiome de départ et des règles de réécriture. La chaîne complexe générée est ensuite traduite en un graphe de noeuds géométriques (segments) via une interprétation type "Turtle Graphics".
+L'étape 2 (Arbre 3D) est désormais **terminée**. Un moteur 3D complet a été implémenté avec succès :
+- **L-System Spatial** : Ajout d'une véritable tortue 3D gérant le roulis (roll), le tangage (pitch) et le lacet (yaw) via des matrices de rotation.
+- **Physique 3D Rigoureuse** : Les moments de force, l'inertie et le calcul de la torsion utilisent désormais l'algèbre linéaire 3D (Vecteurs d'Euler, formule de Rodrigues, produits vectoriels).
+- **Rendu Matplotlib 3D** : Affichage dans l'espace avec une caméra tournante.
+
+La prochaine étape (ultime brique du projet) consistera à générer plusieurs arbres en même temps (une forêt) et à implémenter une mécanique des fluides rudimentaire (atténuation du vent par les premiers arbres sur ceux situés derrière).
