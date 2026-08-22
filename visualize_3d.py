@@ -91,6 +91,7 @@ thicknesses = np.zeros(num_segments, dtype=np.float32)
 import random
 leaf_offsets_list = []
 leaf_parent_indices_list = []
+leaf_orient_list = []
 for i, seg in enumerate(all_segments):
     lines[i, 0] = 2
     lines[i, 1] = i * 2
@@ -98,13 +99,16 @@ for i, seg in enumerate(all_segments):
     thicknesses[i] = seg.thickness
     
     if getattr(seg, 'has_leaf', False):
-        # 10 feuilles par extrémité
-        for _ in range(10):
-            # Décalage aléatoire dans une sphère
+        # 4 à 5 vraies feuilles par extrémité (moins que les 10 sphères pour garder les perfs)
+        for _ in range(4):
+            # Décalage aléatoire
             u = np.random.normal(0, 1, 3)
             u = u / np.linalg.norm(u) * np.random.uniform(0.2, 1.8)
             leaf_offsets_list.append(u)
             leaf_parent_indices_list.append(i)
+            # Orientation aléatoire de la feuille
+            n = np.random.normal(0, 1, 3)
+            leaf_orient_list.append(n / np.linalg.norm(n))
 
 leaf_offsets = np.array(leaf_offsets_list, dtype=np.float32)
 leaf_parent_indices = np.array(leaf_parent_indices_list, dtype=np.int32)
@@ -116,17 +120,24 @@ mesh_branches = pv.PolyData(points, lines=lines)
 mesh_branches.cell_data['thickness'] = thicknesses
 
 mesh_leaves = pv.PolyData(leaf_points)
+mesh_leaves['orient'] = np.array(leaf_orient_list, dtype=np.float32)
+
+# Forme géométrique d'une feuille (un petit losange aplati)
+base_leaf = pv.Sphere(theta_resolution=4, phi_resolution=4, radius=0.6)
+base_leaf.points[:, 2] *= 0.1 # On aplatit la sphère pour en faire une feuille plate
+
+# Génération initiale des feuilles
+leaf_glyphs = mesh_leaves.glyph(geom=base_leaf, orient='orient', factor=1.0)
 
 plotter = pv.Plotter(title="Simulation 3D Hyper-Réaliste - PyVista")
-plotter.set_background('black')
+plotter.set_background('#87ceeb') # Bleu ciel (Sky Blue)
 
 # On dessine les branches (shaders natifs)
 plotter.add_mesh(mesh_branches, scalars='thickness', cmap='copper', 
                  render_lines_as_tubes=True, line_width=5, show_scalar_bar=False)
 
-# On dessine les feuilles (plus petites pour faire un nuage de feuillage)
-plotter.add_mesh(mesh_leaves, color='#35b02a', point_size=12, 
-                 render_points_as_spheres=True, opacity=0.8)
+# On dessine le feuillage (vrais modèles 3D orientés)
+leaf_actor = plotter.add_mesh(leaf_glyphs, color='#35b02a', opacity=0.9, lighting=True)
 
 # Matrice pour mettre l'arbre debout
 rot_y_up = np.array([
@@ -155,7 +166,11 @@ def update_points():
         
     # On met à jour directement la mémoire vidéo
     mesh_branches.points = points
+    
+    # Recalcul des modèles de feuilles aux nouvelles positions
     mesh_leaves.points = leaf_points
+    new_glyphs = mesh_leaves.glyph(geom=base_leaf, orient='orient', factor=1.0)
+    leaf_actor.mapper.dataset = new_glyphs
 
 # Première frame
 for root in roots:
