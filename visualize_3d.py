@@ -1,8 +1,7 @@
 import math
+import time
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
-from mpl_toolkits.mplot3d.art3d import Line3DCollection
+import pyvista as pv
 
 from lsystem_3d import LSystem3D, parse_to_graph_3d
 from physics_3d import PhysicsEngine3D
@@ -10,48 +9,53 @@ from physics_3d import PhysicsEngine3D
 # ==========================================
 # 1. PARAMÉTRAGE 3D
 # ==========================================
-# L-System Monopodial avec rotation spatiale
-AXIOM = "FFFFX"  # Base du tronc
+AXIOM = "FFFFX"  
 RULES = {
-    # \\\\ correspond à 4 fois l'angle (soit 90 degrés si angle=22.5)
-    # L'arbre va donc générer ses branches en spirale autour du tronc !
-    "X": "F[+X][\\\\-X]FX", 
+    # Un chêne a une croissance asymétrique. On tire au hasard parmi 4 motifs.
+    "X": [
+        "F[+X][\\\\-X]FX",
+        "F[-X][/X]FX",
+        "F[&X][^X]FX",
+        "F[+X]FX" # Branche qui ne se sépare qu'en deux
+    ], 
     "F": "F"
 }
-ITERATIONS = 6
-ANGLE_INCREMENT = math.radians(22.5)
+ITERATIONS = 7
+ANGLE_INCREMENT = math.radians(24.0)
 SEGMENT_LENGTH = 1.0
-NOISE = math.radians(10.0)
+NOISE = math.radians(12.0)
+TROPISM_VECTOR = [-1.0, 0.0, 0.0] # La gravité tire l'axe local X vers l'arrière
+TROPISM_FACTOR = 0.06 # Force de la gravité (donne un joli port retombant)
 
-# Paramètres Physiques
-FRAME_DT = 0.05
-PHYSICS_DT = 0.005
-STEPS_PER_FRAME = int(FRAME_DT / PHYSICS_DT)
+FRAME_DT = 1.0 / 60.0  # 60 FPS strict
+PHYSICS_DT = 0.002
+STEPS_PER_FRAME = max(1, int(FRAME_DT / PHYSICS_DT))
 WIND_PARAMS = {
-    "wind_speed": 18.0,
-    "wind_dir": [0.0, 1.0, 0.0], # Le vent souffle selon l'axe Y
-    "wind_frequency": 0.3
+    "wind_speed": 22.0,
+    "wind_dir": [1.0, 0.0, 0.0],
+    "wind_frequency": 0.35
 }
 
 # ==========================================
 # 2. GÉNÉRATION DE L'ARBRE 3D
 # ==========================================
+print("Génération du modèle mathématique...")
 system = LSystem3D(AXIOM, RULES)
 sentence = system.generate(ITERATIONS)
-roots = parse_to_graph_3d(sentence, ANGLE_INCREMENT, SEGMENT_LENGTH, noise=NOISE)
+roots = parse_to_graph_3d(sentence, ANGLE_INCREMENT, SEGMENT_LENGTH, noise=NOISE, tropism_vector=TROPISM_VECTOR, tropism_factor=TROPISM_FACTOR)
 
 def init_physics_properties(segment, depth=0):
-    thickness_sq = 0
+    thickness_pow = 0
     segment.inertia = 0.0
     for child in segment.children:
         init_physics_properties(child, depth + 1)
-        thickness_sq += child.thickness ** 2
+        thickness_pow += child.thickness ** 2.5 # Loi de Murray (n=2.5) pour un tronc plus élancé
         segment.inertia += child.inertia
         
     if not segment.children:
-        segment.thickness = 1.0
+        segment.thickness = 0.7
     else:
-        segment.thickness = math.sqrt(thickness_sq)
+        segment.thickness = thickness_pow ** (1.0 / 2.5)
 
     segment.mass = (segment.thickness ** 2) * 0.2
     segment.inertia += segment.mass
@@ -64,21 +68,74 @@ for root in roots:
 engine = PhysicsEngine3D(dt=PHYSICS_DT)
 
 # ==========================================
-# 3. VISUALISATION 3D
+# 3. MOTEUR GRAPHIQUE HAUTE PERFORMANCE (PYVISTA / VTK)
 # ==========================================
-fig = plt.figure(figsize=(10, 10))
-ax = fig.add_subplot(111, projection='3d')
-ax.set_facecolor('black')
-fig.patch.set_facecolor('black')
+print("Initialisation du moteur graphique VTK...")
+
+all_segments = []
+def collect_segments(seg):
+    all_segments.append(seg)
+    for c in seg.children:
+        collect_segments(c)
+        
+for r in roots:
+    collect_segments(r)
+
+num_segments = len(all_segments)
+# Les tableaux Numpy sont directement passés à la carte graphique (zéro surcoût)
+points = np.zeros((num_segments * 2, 3), dtype=np.float32)
+lines = np.zeros((num_segments, 3), dtype=np.int32)
+thicknesses = np.zeros(num_segments, dtype=np.float32)
+
+# Remplissage des tableaux géométriques et création d'un feuillage volumétrique
+import random
+leaf_offsets_list = []
+leaf_parent_indices_list = []
+for i, seg in enumerate(all_segments):
+    lines[i, 0] = 2
+    lines[i, 1] = i * 2
+    lines[i, 2] = i * 2 + 1
+    thicknesses[i] = seg.thickness
+    
+    if getattr(seg, 'has_leaf', False):
+        # 10 feuilles par extrémité
+        for _ in range(10):
+            # Décalage aléatoire dans une sphère
+            u = np.random.normal(0, 1, 3)
+            u = u / np.linalg.norm(u) * np.random.uniform(0.2, 1.8)
+            leaf_offsets_list.append(u)
+            leaf_parent_indices_list.append(i)
+
+leaf_offsets = np.array(leaf_offsets_list, dtype=np.float32)
+leaf_parent_indices = np.array(leaf_parent_indices_list, dtype=np.int32)
+num_leaves = len(leaf_offsets)
+leaf_points = np.zeros((num_leaves, 3), dtype=np.float32)
+
+# Création des objets géométriques VTK
+mesh_branches = pv.PolyData(points, lines=lines)
+mesh_branches.cell_data['thickness'] = thicknesses
+
+mesh_leaves = pv.PolyData(leaf_points)
+
+plotter = pv.Plotter(title="Simulation 3D Hyper-Réaliste - PyVista")
+plotter.set_background('black')
+
+# On dessine les branches (shaders natifs)
+plotter.add_mesh(mesh_branches, scalars='thickness', cmap='copper', 
+                 render_lines_as_tubes=True, line_width=5, show_scalar_bar=False)
+
+# On dessine les feuilles (plus petites pour faire un nuage de feuillage)
+plotter.add_mesh(mesh_leaves, color='#35b02a', point_size=12, 
+                 render_points_as_spheres=True, opacity=0.8)
+
+# Matrice pour mettre l'arbre debout
+rot_y_up = np.array([
+    [0, 0, -1],
+    [0, 1, 0],
+    [1, 0, 0]
+], dtype=float)
 
 def calc_absolute_positions(segment, start_pos):
-    # L'axe principal local est X (colonne 0 de la matrice de rotation absolue)
-    # Note : Dans matplotlib 3D, l'axe Z est la hauteur. 
-    # Or, au repos (matrice identité), X pointe vers [1,0,0], ce qui est horizontal.
-    # Pour que l'arbre pousse vers le haut (axe Z absolu), nous devons appliquer
-    # une rotation initiale de l'arbre tout entier de 90° autour de Y.
-    # Cela se fait en passant une matrice initiale modifiée au moteur physique !
-    
     H_abs = segment.absolute_R[:, 0]
     end_pos = start_pos + segment.length * H_abs
     segment.start_pos = start_pos
@@ -86,107 +143,51 @@ def calc_absolute_positions(segment, start_pos):
     for child in segment.children:
         calc_absolute_positions(child, end_pos)
 
-# Matrice pour orienter l'arbre vers le haut (Axe Z = axe du tronc)
-# Rotation de -pi/2 autour de Y pour que le vecteur [1,0,0] devienne [0,0,1]
-rot_y_up = np.array([
-    [0, 0, -1],
-    [0, 1, 0],
-    [1, 0, 0]
-], dtype=float)
-
-# Initialisation pour avoir les longueurs et limites
-for root in roots:
-    engine.update_kinematics(root, parent_R_abs=rot_y_up)
-    calc_absolute_positions(root, np.array([0.0, 0.0, 0.0]))
-
-max_val = 0.0
-def find_max(segment):
-    global max_val
-    max_val = max(max_val, np.linalg.norm(segment.end_pos))
-    for child in segment.children:
-        find_max(child)
-
-for root in roots:
-    find_max(root)
-
-lim = max_val * 0.6
-ax.set_xlim([-lim, lim])
-ax.set_ylim([-lim, lim])
-ax.set_zlim([0, max_val * 1.05])
-ax.axis('off')
-
-lines = []
-
-# Collecteurs pour l'optimisation
-branch_segments = []
-branch_colors = []
-branch_lws = []
-leaf_xs, leaf_ys, leaf_zs = [], [], []
-
-def build_geometry_recursive(segment):
-    sx, sy, sz = segment.start_pos
-    ex, ey, ez = segment.end_pos
-    
-    branch_segments.append([(sx, sy, sz), (ex, ey, ez)])
-    branch_colors.append('#543b2a' if segment.thickness > 2.0 else '#8c6b51')
-    branch_lws.append(max(1.0, segment.thickness * 1.2))
-    
-    if getattr(segment, 'has_leaf', False):
-        leaf_xs.append(ex)
-        leaf_ys.append(ey)
-        leaf_zs.append(ez)
-        
-    for child in segment.children:
-        build_geometry_recursive(child)
-
-# Première passe pour initialiser les collections
-for root in roots:
-    build_geometry_recursive(root)
-    
-# Création d'une collection unique pour toutes les branches (beaucoup plus rapide !)
-lc = Line3DCollection(branch_segments, colors=branch_colors, linewidths=branch_lws, capstyle='round')
-ax.add_collection3d(lc)
-
-# Un seul objet pour toutes les feuilles
-leaves_plot, = ax.plot(leaf_xs, leaf_ys, leaf_zs, marker='o', markersize=3, color='#45a83a', alpha=0.9, linestyle='None', zorder=3)
-
-def update(frame):
-    current_time = frame * FRAME_DT
-    
-    for _ in range(STEPS_PER_FRAME):
-        # 1. Cinématique (en appliquant la rotation pour mettre l'arbre debout)
-        for root in roots:
-            engine.update_kinematics(root, parent_R_abs=rot_y_up)
-            
-        # 2. Dynamique
-        for root in roots:
-            engine.update_segment(root, current_time, WIND_PARAMS)
-            
-        current_time += PHYSICS_DT
-        
-    # 3. Calcul des positions 3D absolues pour l'affichage
+def update_points():
     for root in roots:
         calc_absolute_positions(root, np.array([0.0, 0.0, 0.0]))
+    for i, seg in enumerate(all_segments):
+        points[i*2] = seg.start_pos
+        points[i*2+1] = seg.end_pos
         
-    # 4. Mise à jour de la géométrie optimisée
-    branch_segments.clear()
-    leaf_xs.clear()
-    leaf_ys.clear()
-    leaf_zs.clear()
-    
-    for root in roots:
-        build_geometry_recursive(root)
+    # Mise à jour hyper rapide (vectorisée) des positions des feuilles
+    leaf_points[:] = points[leaf_parent_indices * 2 + 1] + leaf_offsets
         
-    lc.set_segments(branch_segments)
-    leaves_plot.set_data_3d(leaf_xs, leaf_ys, leaf_zs)
-        
-    # Rotation douce de la caméra pour admirer la 3D
-    ax.view_init(elev=20, azim=frame * 0.5)
-    
-    return [lc, leaves_plot]
+    # On met à jour directement la mémoire vidéo
+    mesh_branches.points = points
+    mesh_leaves.points = leaf_points
 
-ani = FuncAnimation(fig, update, frames=300, interval=FRAME_DT*1000, blit=False)
+# Première frame
+for root in roots:
+    engine.update_kinematics(root, parent_R_abs=rot_y_up)
+update_points()
 
-if __name__ == '__main__':
-    print("Génération de l'arbre 3D et démarrage de la simulation (cela peut prendre quelques secondes)...")
-    plt.show()
+plotter.camera_position = 'yz'
+plotter.camera.elevation = 15
+
+# ==========================================
+# 4. BOUCLE D'ANIMATION EN TEMPS RÉEL
+# ==========================================
+print("Démarrage de la simulation 3D fluide à 60 FPS (Fermez la fenêtre pour arrêter)...")
+current_time = 0.0
+
+def animation_callback(step):
+    global current_time
+    # Résolution de la physique
+    for _ in range(STEPS_PER_FRAME):
+        for root in roots:
+            engine.update_kinematics(root, parent_R_abs=rot_y_up)
+        for root in roots:
+            engine.update_segment(root, current_time, WIND_PARAMS)
+        current_time += PHYSICS_DT
+        
+    # Mise à jour graphique
+    update_points()
+    # Le rendu est géré automatiquement par VTK
+
+# Sur MacOS, l'interface graphique DOIT tourner sur le thread principal.
+# L'utilisation d'un timer VTK est la seule solution stable.
+duration_ms = max(1, int(FRAME_DT * 1000))
+plotter.add_timer_event(max_steps=1000000, duration=duration_ms, callback=animation_callback)
+
+plotter.show()
