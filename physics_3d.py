@@ -60,23 +60,20 @@ class PhysicsEngine3D:
         t = current_time
         # Somme de sinus pour simuler un vent chaotique mais fluide
         gust = 0.6 + 0.3 * math.sin(2 * math.pi * freq * t) + 0.15 * math.sin(2 * math.pi * (freq * 2.37) * t)
-        force_mag = wind_speed * gust
         
-        # Surface de prise au vent (projetée)
+        # On utilise une échelle non linéaire pour la force du vent (aéroélasticité simulée)
+        # Cela évite que les brindilles (qui ont une très faible rigidité) ne soient arrachées, 
+        # tout en poussant modérément le tronc
+        force_mag = wind_speed * gust * (segment.thickness ** 3)
+        
+        # Surface de prise au vent (projetée via l'angle)
         cross_prod = np.cross(H_abs, wind_dir)
         effective_area = np.linalg.norm(cross_prod)
         if getattr(segment, 'has_leaf', False):
-            effective_area *= 5.0
+            effective_area *= 1.5 # Prise au vent de la feuille (réduite pour éviter les torsions)
             
-        depth = 1
-        curr = segment.parent
-        while curr is not None:
-            depth += 1
-            curr = curr.parent
-        attenuation = 1.0 / math.sqrt(depth)
-        
-        # Force absolue du vent
-        F_wind_abs = force_mag * effective_area * attenuation * wind_dir
+        # Force absolue du vent (plus besoin d'atténuation artificielle selon la profondeur)
+        F_wind_abs = force_mag * effective_area * wind_dir
         
         # Bras de levier absolu
         r_abs = (segment.length / 2.0) * H_abs
