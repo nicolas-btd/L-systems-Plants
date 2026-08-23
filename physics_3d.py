@@ -58,8 +58,11 @@ class PhysicsEngine3D:
         # Cycle de vent naturel (vent de base + rafales superposées)
         freq = wind_params["wind_frequency"]
         t = current_time
-        # Somme de sinus pour simuler un vent chaotique mais fluide
-        gust = 0.6 + 0.3 * math.sin(2 * math.pi * freq * t) + 0.15 * math.sin(2 * math.pi * (freq * 2.37) * t)
+        # Des bourrasques espacées par des moments de calme plat (vent = 0)
+        # Le 'max(0.0, ...)' annule le vent lors des phases négatives du sinus.
+        # L'arbre va donc naturellement revenir à sa position statique et s'y stabiliser.
+        base_wind = math.sin(2 * math.pi * freq * t) + 0.5 * math.sin(2 * math.pi * (freq * 2.37) * t)
+        gust = max(0.0, base_wind * 1.2)
         
         # On utilise une échelle non linéaire pour la force du vent (aéroélasticité simulée)
         # Cela évite que les brindilles (qui ont une très faible rigidité) ne soient arrachées, 
@@ -95,15 +98,20 @@ class PhysicsEngine3D:
         return restoring_torque + wind_torque_local + coupling_torque
 
     def update_segment(self, segment, current_time, wind_params):
-        total_torque = self.compute_torque(segment, current_time, wind_params)
-        
-        # PFD vectoriel : alpha = Tau / I
-        angular_accel = total_torque / segment.inertia
-        
-        # Euler semi-implicite vectoriel
-        damping_factor = segment.damping / segment.inertia
-        segment.omega = (segment.omega + angular_accel * self.dt) / (1.0 + damping_factor * self.dt)
-        segment.theta += segment.omega * self.dt
+        if getattr(segment, 'is_kinematic', False):
+            # Le tronc est un bloc de béton : il refuse de plier (theta=0)
+            segment.theta = np.zeros(3)
+            segment.omega = np.zeros(3)
+        else:
+            total_torque = self.compute_torque(segment, current_time, wind_params)
+            
+            # PFD vectoriel : alpha = Tau / I
+            angular_accel = total_torque / segment.inertia
+            
+            # Euler semi-implicite vectoriel
+            damping_factor = segment.damping / segment.inertia
+            segment.omega = (segment.omega + angular_accel * self.dt) / (1.0 + damping_factor * self.dt)
+            segment.theta += segment.omega * self.dt
         
         for child in segment.children:
             self.update_segment(child, current_time, wind_params)

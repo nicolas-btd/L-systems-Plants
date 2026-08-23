@@ -1,20 +1,15 @@
 import pyvista as pv
 import numpy as np
-import vtk
 
-points = np.array([[0,0,0], [1,1,1]], dtype=float)
-mesh = pv.PolyData(points)
-mesh['orient'] = np.array([[1,0,0], [0,1,0]], dtype=float)
-mesh.active_vectors_name = 'orient'
+points = np.zeros((4, 3), dtype=np.float32)
+points[:, 2] = np.arange(4)
+lines = np.array([[2, 0, 1], [2, 1, 2], [2, 2, 3]])
+thicknesses_point = np.array([0.1, 0.2, 0.3, 0.4])
 
-leaf = pv.Sphere(radius=0.1)
+mesh = pv.PolyData(points, lines=lines)
+mesh.point_data['thickness'] = thicknesses_point
 
-mapper = vtk.vtkGlyph3DMapper()
-mapper.SetInputData(mesh)
-mapper.SetSourceData(leaf)
-mapper.SetOrientationModeToDirection()
-
-actor = vtk.vtkActor()
-actor.SetMapper(mapper)
-
-print("SUCCESS")
+tubes = mesh.tube(scalars='thickness', radius=1.0, absolute=True)
+print("Point data keys:", tubes.point_data.keys())
+print("Cell data keys:", tubes.cell_data.keys())
+print("Thickness array size in points:", len(tubes.point_data.get('thickness', [])))
