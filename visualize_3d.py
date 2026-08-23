@@ -43,10 +43,27 @@ WIND_PARAMS = {
 # ==========================================
 # 2. GÉNÉRATION DE L'ARBRE 3D
 # ==========================================
-print("Génération du modèle mathématique...")
+print("Génération du modèle mathématique de la forêt...")
 system = LSystem3D(AXIOM, RULES)
 sentence = system.generate(ITERATIONS)
-roots = parse_to_graph_3d(sentence, ANGLE_INCREMENT, SEGMENT_LENGTH, noise=NOISE, tropism_vector=TROPISM_VECTOR, tropism_factor=TROPISM_FACTOR)
+
+NUM_TREES = 7
+FOREST_SIZE = 30.0 # Terrain de 30x30 mètres
+
+forest_roots = []
+tree_positions = []
+
+import random
+for i in range(NUM_TREES):
+    # Chaque arbre est interprété individuellement pour laisser le "bruit" (noise)
+    # créer de légères variations structurelles (uniques par arbre)
+    r = parse_to_graph_3d(sentence, ANGLE_INCREMENT, SEGMENT_LENGTH, noise=NOISE, tropism_vector=TROPISM_VECTOR, tropism_factor=TROPISM_FACTOR)
+    forest_roots.extend(r)
+    
+    # Positionnement aléatoire sur le terrain (Z est l'axe vertical)
+    x = random.uniform(-FOREST_SIZE/2, FOREST_SIZE/2)
+    y = random.uniform(-FOREST_SIZE/2, FOREST_SIZE/2)
+    tree_positions.append(np.array([x, y, 0.0], dtype=np.float32))
 
 def init_physics_properties(segment, depth=0):
     thickness_pow = 0
@@ -72,7 +89,7 @@ def init_physics_properties(segment, depth=0):
     # pourront bouger. La forme globale de l'arbre restera donc parfaitement statique.
     segment.is_kinematic = segment.thickness > 0.08
 
-for root in roots:
+for root in forest_roots:
     init_physics_properties(root)
 
 engine = PhysicsEngine3D(dt=PHYSICS_DT)
@@ -88,7 +105,7 @@ def collect_segments(seg):
     for c in seg.children:
         collect_segments(c)
         
-for r in roots:
+for r in forest_roots:
     collect_segments(r)
 
 num_segments = len(all_segments)
@@ -153,10 +170,10 @@ def calc_absolute_positions(segment, start_pos):
         calc_absolute_positions(child, end_pos)
 
 # Pré-calcul des positions initiales pour éviter que PyVista ne plante sur des lignes de taille 0
-for root in roots:
+for root in forest_roots:
     engine.update_kinematics(root, parent_R_abs=rot_y_up)
-for root in roots:
-    calc_absolute_positions(root, np.array([0.0, 0.0, 0.0]))
+for i, root in enumerate(forest_roots):
+    calc_absolute_positions(root, tree_positions[i])
 for i, seg in enumerate(all_segments):
     points[i*2] = seg.start_pos
     points[i*2+1] = seg.end_pos
@@ -183,6 +200,10 @@ leaf_glyphs = mesh_leaves.glyph(geom=base_leaf, orient='orient', factor=1.0)
 plotter = pv.Plotter(title="Simulation 3D Hyper-Réaliste - PyVista")
 plotter.set_background('#87ceeb') # Bleu ciel
 
+# Ajout du terrain
+ground = pv.Plane(center=(0, 0, 0), direction=(0, 0, 1), i_size=FOREST_SIZE * 1.2, j_size=FOREST_SIZE * 1.2)
+plotter.add_mesh(ground, color='#3c5a14', lighting=True)
+
 # On génère des tubes 3D réels pour le tronc, dont le rayon dépend de l'épaisseur physique
 # L'augmentation de n_sides à 12 rend les cylindres parfaitement ronds au lieu de facettés
 mesh_tubes = mesh_branches.tube(scalars='thickness', absolute=True, n_sides=12)
@@ -196,8 +217,8 @@ branches_actor = plotter.add_mesh(mesh_tubes, color='#4A3320',
 leaf_actor = plotter.add_mesh(leaf_glyphs, color='#2c7a26', opacity=0.9, lighting=True)
 
 def update_points():
-    for root in roots:
-        calc_absolute_positions(root, np.array([0.0, 0.0, 0.0]))
+    for i, root in enumerate(forest_roots):
+        calc_absolute_positions(root, tree_positions[i])
     for i, seg in enumerate(all_segments):
         points[i*2] = seg.start_pos
         points[i*2+1] = seg.end_pos
@@ -218,7 +239,7 @@ def update_points():
     branches_actor.mapper.dataset = new_tubes
 
 # Première frame
-for root in roots:
+for root in forest_roots:
     engine.update_kinematics(root, parent_R_abs=rot_y_up)
 update_points()
 
@@ -235,9 +256,9 @@ def animation_callback(step):
     global current_time
     # Résolution de la physique
     for _ in range(STEPS_PER_FRAME):
-        for root in roots:
+        for root in forest_roots:
             engine.update_kinematics(root, parent_R_abs=rot_y_up)
-        for root in roots:
+        for root in forest_roots:
             engine.update_segment(root, current_time, WIND_PARAMS)
         current_time += PHYSICS_DT
         
