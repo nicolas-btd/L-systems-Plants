@@ -273,39 +273,7 @@ plotter.camera.elevation = 15
 print("Démarrage de la simulation 3D fluide à 60 FPS (Fermez la fenêtre pour arrêter)...")
 current_time = 6.5
 
-def compute_wind_effects(tree_positions, wind_dir):
-    num_trees = len(tree_positions)
-    multipliers = np.ones(num_trees)
-    phase_offsets = np.zeros(num_trees)
-
-    wd = np.array([wind_dir[0], wind_dir[1], 0.0])
-    wd_norm = np.linalg.norm(wd)
-    if wd_norm > 1e-6:
-        wd = wd / wd_norm
-        
-    SHIELDING_LENGTH = 20.0 
-    SHIELDING_RADIUS = 10.0 
-    MAX_SHIELD = 0.85 
-    
-    WIND_SPEED_M_S = 25.0 
-    
-    for i, pi in enumerate(tree_positions):
-        # 1. Décalage de phase (effet vague de vent)
-        phase_offsets[i] = np.dot(pi, wd) / WIND_SPEED_M_S
-        
-        # 2. Ombre aérodynamique (interaction entre les arbres)
-        for j, pj in enumerate(tree_positions):
-            if i == j: continue
-            D = pi - pj
-            dist_wind = np.dot(D, wd)
-            
-            if 0 < dist_wind < SHIELDING_LENGTH:
-                D_perp = D - dist_wind * wd
-                dist_perp = np.linalg.norm(D_perp)
-                if dist_perp < SHIELDING_RADIUS:
-                    shadow = (1.0 - dist_wind / SHIELDING_LENGTH) * (1.0 - dist_perp / SHIELDING_RADIUS)
-                    multipliers[i] *= (1.0 - shadow * MAX_SHIELD)
-    return multipliers, phase_offsets
+from wind_model import compute_wind_effects
 
 # Pré-calcul de l'aérodynamique
 wind_multipliers, wind_phases = compute_wind_effects(tree_positions, WIND_PARAMS["wind_dir"])
