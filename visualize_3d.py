@@ -11,33 +11,32 @@ from physics_3d import PhysicsEngine3D
 # ==========================================
 AXIOM = "FFFFX"  
 RULES = {
-    # On garantit une croissance parfaitement symétrique à 360° dans toutes les directions (XY et XZ)
-    # pour éviter que l'arbre ne pousse de façon "plate" (en mur).
+    
     "X": [
         "F[+X][-X]FX", # Axe 1
         "F[&X][^X]FX", # Axe 2
         "F[+X][^X]FX", # Diagonale 1
         "F[-X][&X]FX", # Diagonale 2
-        "F[+X][&X]FX", # Diagonale 3 (manquait, causait l'ovalisation !)
-        "F[-X][^X]FX"  # Diagonale 4 (manquait, causait l'ovalisation !)
+        "F[+X][&X]FX", # Diagonale 3
+        "F[-X][^X]FX"  # Diagonale 4
     ], 
     "F": "F"
 }
-ITERATIONS = 6 # Densité idéale pour allier un aspect visuel luxuriant et des performances fluides
+ITERATIONS = 6 
 ANGLE_INCREMENT = math.radians(24.0)
 SEGMENT_LENGTH = 1.0
 NOISE = math.radians(12.0)
-TROPISM_VECTOR = [-1.0, 0.0, 0.0] # La gravité tire l'axe local X vers l'arrière
-TROPISM_FACTOR = 0.06 # Force de la gravité (donne un joli port retombant)
+TROPISM_VECTOR = [-1.0, 0.0, 0.0] 
+TROPISM_FACTOR = 0.06 
 
 FRAME_DT = 1.0 / 60.0  # 60 FPS strict
-# La physique est désormais si stable (grâce à l'harmonisation) qu'elle peut tourner à 60Hz natif
+
 PHYSICS_DT = FRAME_DT 
 STEPS_PER_FRAME = 1
 WIND_PARAMS = {
-    "wind_speed": 12.0, # Vent doux : le tronc est impassible, seules les feuilles et petites branches frétillent
-    "wind_dir": [1.0, 0.0, 0.0],
-    "wind_frequency": 0.35
+    "wind_speed": 22.0, 
+    "wind_dir": [1.0, 1.0, 0.0], 
+    "wind_frequency": 0.15 
 }
 
 # ==========================================
@@ -55,12 +54,11 @@ tree_positions = []
 
 import random
 for i in range(NUM_TREES):
-    # Chaque arbre est interprété individuellement pour laisser le "bruit" (noise)
-    # créer de légères variations structurelles (uniques par arbre)
+    # Variations structurelles via le bruit
     r = parse_to_graph_3d(sentence, ANGLE_INCREMENT, SEGMENT_LENGTH, noise=NOISE, tropism_vector=TROPISM_VECTOR, tropism_factor=TROPISM_FACTOR)
     forest_roots.extend(r)
     
-    # Positionnement aléatoire sur le terrain (Z est l'axe vertical)
+    # Positionnement aléatoire
     x = random.uniform(-FOREST_SIZE/2, FOREST_SIZE/2)
     y = random.uniform(-FOREST_SIZE/2, FOREST_SIZE/2)
     tree_positions.append(np.array([x, y, 0.0], dtype=np.float32))
@@ -78,25 +76,23 @@ def init_physics_properties(segment, depth=0):
     else:
         segment.thickness = thickness_pow ** (1.0 / 2.5)
 
-    # Physique réaliste d'une poutre : la rigidité dépend du rayon à la puissance 4
     segment.mass = (segment.thickness ** 2) * 0.2
     segment.inertia += segment.mass
-    segment.stiffness = (segment.thickness ** 4) * 2000.0 # Bois de chêne : extrêmement raide
-    # Amortissement suffisant pour dissiper l'énergie du vent et éviter l'explosion numérique
+    segment.stiffness = (segment.thickness ** 4) * 500.0 
+    
     segment.damping = segment.stiffness * 0.45
     
-    # Ancrage absolu : on gèle presque tout l'arbre ! Seules les branches très fines (épaisseur < 0.08)
-    # pourront bouger. La forme globale de l'arbre restera donc parfaitement statique.
-    segment.is_kinematic = segment.thickness > 0.08
+    # Seules les branches fines sont dynamiques
+    segment.is_kinematic = segment.thickness > 0.12
 
 for root in forest_roots:
     init_physics_properties(root)
 
 engine = PhysicsEngine3D(dt=PHYSICS_DT)
 
-# ==========================================
-# 3. MOTEUR GRAPHIQUE HAUTE PERFORMANCE (PYVISTA / VTK)
-# ==========================================
+# ======================================
+# 3. MOTEUR GRAPHIQUE  (PYVISTA / VTK)
+# ======================================
 print("Initialisation du moteur graphique VTK...")
 
 all_segments = []
@@ -109,10 +105,10 @@ for r in forest_roots:
     collect_segments(r)
 
 num_segments = len(all_segments)
-# Les tableaux Numpy sont directement passés à la carte graphique (zéro surcoût)
+
 points = np.zeros((num_segments * 2, 3), dtype=np.float32)
 lines = np.zeros((num_segments, 3), dtype=np.int32)
-# L'épaisseur doit être définie pour chaque sommet (point_data) et non chaque cellule
+
 thicknesses = np.zeros(num_segments * 2, dtype=np.float32)
 
 # Remplissage des tableaux géométriques et création d'un feuillage volumétrique
@@ -125,8 +121,7 @@ for i, seg in enumerate(all_segments):
     lines[i, 1] = i * 2
     lines[i, 2] = i * 2 + 1
     
-    # Le secret d'un arbre organique continu (tapering) :
-    # La base du segment prend EXACTEMENT l'épaisseur de son parent !
+    # Tapering continu
     if seg.parent is not None:
         thicknesses[i * 2] = seg.parent.thickness
     else:
@@ -136,7 +131,7 @@ for i, seg in enumerate(all_segments):
     thicknesses[i * 2 + 1] = seg.thickness
     
     if getattr(seg, 'has_leaf', False):
-        # 3 petites feuilles par extrémité pour recréer un nuage organique
+        # Ajout des feuilles
         for _ in range(3):
             # Décalage aléatoire autour de la branche
             u = np.random.normal(0, 1, 3)
@@ -169,7 +164,7 @@ def calc_absolute_positions(segment, start_pos):
     for child in segment.children:
         calc_absolute_positions(child, end_pos)
 
-# Pré-calcul des positions initiales pour éviter que PyVista ne plante sur des lignes de taille 0
+# Positions initiales
 for root in forest_roots:
     engine.update_kinematics(root, parent_R_abs=rot_y_up)
 for i, root in enumerate(forest_roots):
@@ -182,8 +177,7 @@ if num_leaves > 0:
 
 # Création des objets géométriques VTK
 mesh_branches = pv.PolyData(points, lines=lines)
-# PyVista ignore "radius" quand absolute=True. Pour affiner l'arbre, on doit réduire le scalaire lui-même.
-# Un facteur de 0.45 redonne au tronc son épaisseur normale
+# Ajustement de l'épaisseur du tronc
 mesh_branches.point_data['thickness'] = thicknesses * 0.45
 
 mesh_leaves = pv.PolyData(leaf_points)
@@ -205,11 +199,11 @@ ground = pv.Plane(center=(0, 0, 0), direction=(0, 0, 1), i_size=FOREST_SIZE * 1.
 plotter.add_mesh(ground, color='#3c5a14', lighting=True)
 
 # On génère des tubes 3D réels pour le tronc, dont le rayon dépend de l'épaisseur physique
-# L'augmentation de n_sides à 12 rend les cylindres parfaitement ronds au lieu de facettés
+
 mesh_tubes = mesh_branches.tube(scalars='thickness', absolute=True, n_sides=12)
 
 # On dessine les branches (vrais tubes 3D lissés)
-# Un bois uni et sombre (la lumière VTK se chargera des dégradés naturels via les ombres)
+
 branches_actor = plotter.add_mesh(mesh_tubes, color='#4A3320', 
                                   show_scalar_bar=False, smooth_shading=True)
 
@@ -222,14 +216,12 @@ def update_points():
     for i, seg in enumerate(all_segments):
         points[i*2] = seg.start_pos
         points[i*2+1] = seg.end_pos
-        
-    # Mise à jour hyper rapide (vectorisée) des positions des feuilles
+
     leaf_points[:] = points[leaf_parent_indices * 2 + 1] + leaf_offsets
         
     # On met à jour directement la mémoire vidéo
     mesh_branches.points = points
-    
-    # Recalcul hyper-rapide des feuilles (12000 objets = < 1ms)
+
     mesh_leaves.points = leaf_points
     new_glyphs = mesh_leaves.glyph(geom=base_leaf, orient='orient', factor=1.0)
     leaf_actor.mapper.dataset = new_glyphs
@@ -250,7 +242,44 @@ plotter.camera.elevation = 15
 # 4. BOUCLE D'ANIMATION EN TEMPS RÉEL
 # ==========================================
 print("Démarrage de la simulation 3D fluide à 60 FPS (Fermez la fenêtre pour arrêter)...")
-current_time = 0.0
+current_time = 6.5
+
+def compute_wind_effects(tree_positions, wind_dir):
+    num_trees = len(tree_positions)
+    multipliers = np.ones(num_trees)
+    phase_offsets = np.zeros(num_trees)
+
+    wd = np.array([wind_dir[0], wind_dir[1], 0.0])
+    wd_norm = np.linalg.norm(wd)
+    if wd_norm > 1e-6:
+        wd = wd / wd_norm
+        
+    SHIELDING_LENGTH = 20.0 
+    SHIELDING_RADIUS = 10.0 
+    MAX_SHIELD = 0.85 
+    
+    WIND_SPEED_M_S = 25.0 
+    
+    for i, pi in enumerate(tree_positions):
+        # 1. Décalage de phase (effet vague de vent)
+        phase_offsets[i] = np.dot(pi, wd) / WIND_SPEED_M_S
+        
+        # 2. Ombre aérodynamique (interaction entre les arbres)
+        for j, pj in enumerate(tree_positions):
+            if i == j: continue
+            D = pi - pj
+            dist_wind = np.dot(D, wd)
+            
+            if 0 < dist_wind < SHIELDING_LENGTH:
+                D_perp = D - dist_wind * wd
+                dist_perp = np.linalg.norm(D_perp)
+                if dist_perp < SHIELDING_RADIUS:
+                    shadow = (1.0 - dist_wind / SHIELDING_LENGTH) * (1.0 - dist_perp / SHIELDING_RADIUS)
+                    multipliers[i] *= (1.0 - shadow * MAX_SHIELD)
+    return multipliers, phase_offsets
+
+# Pré-calcul de l'aérodynamique
+wind_multipliers, wind_phases = compute_wind_effects(tree_positions, WIND_PARAMS["wind_dir"])
 
 def animation_callback(step):
     global current_time
@@ -258,16 +287,14 @@ def animation_callback(step):
     for _ in range(STEPS_PER_FRAME):
         for root in forest_roots:
             engine.update_kinematics(root, parent_R_abs=rot_y_up)
-        for root in forest_roots:
-            engine.update_segment(root, current_time, WIND_PARAMS)
+        for i, root in enumerate(forest_roots):
+            engine.update_segment(root, current_time, WIND_PARAMS, wind_multiplier=wind_multipliers[i], phase_offset=wind_phases[i])
         current_time += PHYSICS_DT
         
     # Mise à jour graphique
     update_points()
     # Le rendu est géré automatiquement par VTK
 
-# Sur MacOS, l'interface graphique DOIT tourner sur le thread principal.
-# L'utilisation d'un timer VTK est la seule solution stable.
 duration_ms = max(1, int(FRAME_DT * 1000))
 plotter.add_timer_event(max_steps=1000000, duration=duration_ms, callback=animation_callback)
 
