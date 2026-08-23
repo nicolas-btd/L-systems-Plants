@@ -24,12 +24,24 @@ Le projet sera construit de manière très structurée et incrémentale, en vali
 
 ---
 
-## 3. Étape Actuelle : Modélisation d'une Forêt
+## 3. Étape Actuelle : Validation du Moteur 3D
 *(En cours de développement)*
 
-L'étape 2 (Arbre 3D) est désormais **terminée**. Un moteur 3D complet a été implémenté avec succès :
-- **L-System Spatial** : Ajout d'une véritable tortue 3D gérant le roulis (roll), le tangage (pitch) et le lacet (yaw) via des matrices de rotation.
-- **Physique 3D Rigoureuse** : Les moments de force, l'inertie et le calcul de la torsion utilisent désormais l'algèbre linéaire 3D (Vecteurs d'Euler, formule de Rodrigues, produits vectoriels).
-- **Rendu Matplotlib 3D** : Affichage dans l'espace avec une caméra tournante.
+L'étape 2 (Arbre 3D) ainsi que la génération d'une forêt (ombrage aérodynamique) sont désormais **terminées**. Un moteur 3D complet a été implémenté avec succès :
+- **L-System Spatial** : Ajout d'une véritable tortue 3D gérant le roulis, le tangage et le lacet via des matrices de rotation.
+- **Physique 3D Rigoureuse** : Les moments de force, l'inertie et le calcul de la torsion utilisent l'algèbre linéaire 3D (Vecteurs d'Euler, formule de Rodrigues).
+- **Moteur Graphique** : Rendu optimisé via PyVista et VTK.
 
-La prochaine étape (ultime brique du projet) consistera à générer plusieurs arbres en même temps (une forêt) et à implémenter une mécanique des fluides rudimentaire (atténuation du vent par les premiers arbres sur ceux situés derrière).
+---
+
+## 4. Applications à la Sylviculture
+
+Maintenant que le modèle mathématique et physique est robuste, le projet se concentre sur des expériences pratiques liées à la sylviculture et à la gestion forestière.
+
+**Objectif Actuel : Topologie de plantation et résistance au vent**
+L'objectif est de placer une forêt de dimension fixe sous une forte tempête et de mesurer mathématiquement le stress mécanique subi par les arbres en fonction de leur schéma de plantation. 
+Nous comparerons deux configurations classiques :
+- **La plantation alignée (Grille)** : Les arbres sont disposés en rangées et colonnes parfaites.
+- **La plantation en quinconce** : Les rangées sont décalées pour tenter de bloquer les couloirs de vent.
+
+Cette expérience permettra d'évaluer la robustesse de notre modèle aérodynamique face aux observations réelles des forestiers (qui recommandent généralement le quinconce ou des lisières progressives) et d'affiner notre simulation de la dynamique des fluides.
