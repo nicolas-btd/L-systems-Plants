@@ -11,12 +11,15 @@ from physics_3d import PhysicsEngine3D
 # ==========================================
 AXIOM = "FFFFX"  
 RULES = {
-    # Un chêne a une croissance asymétrique. On tire au hasard parmi 4 motifs.
+    # On garantit une croissance parfaitement symétrique à 360° dans toutes les directions (XY et XZ)
+    # pour éviter que l'arbre ne pousse de façon "plate" (en mur).
     "X": [
-        "F[+X][\\\\-X]FX",
-        "F[-X][/X]FX",
-        "F[&X][^X]FX",
-        "F[+X]FX" # Branche qui ne se sépare qu'en deux
+        "F[+X][-X]FX", # Axe 1
+        "F[&X][^X]FX", # Axe 2
+        "F[+X][^X]FX", # Diagonale 1
+        "F[-X][&X]FX", # Diagonale 2
+        "F[+X][&X]FX", # Diagonale 3 (manquait, causait l'ovalisation !)
+        "F[-X][^X]FX"  # Diagonale 4 (manquait, causait l'ovalisation !)
     ], 
     "F": "F"
 }
@@ -32,7 +35,7 @@ FRAME_DT = 1.0 / 60.0  # 60 FPS strict
 PHYSICS_DT = FRAME_DT 
 STEPS_PER_FRAME = 1
 WIND_PARAMS = {
-    "wind_speed": 22.0,
+    "wind_speed": 12.0, # Vent doux : le tronc est impassible, seules les feuilles et petites branches frétillent
     "wind_dir": [1.0, 0.0, 0.0],
     "wind_frequency": 0.35
 }
@@ -54,17 +57,20 @@ def init_physics_properties(segment, depth=0):
         segment.inertia += child.inertia
         
     if not segment.children:
-        segment.thickness = 0.7
+        segment.thickness = 0.05 # Une brindille fait 5cm d'épaisseur, pas 70cm !
     else:
         segment.thickness = thickness_pow ** (1.0 / 2.5)
 
     # Physique réaliste d'une poutre : la rigidité dépend du rayon à la puissance 4
-    # Cela garantit un tronc extrêmement rigide qui ne tourbillonne pas,
-    # tout en laissant les petites branches souples.
     segment.mass = (segment.thickness ** 2) * 0.2
     segment.inertia += segment.mass
-    segment.stiffness = (segment.thickness ** 4) * 500.0
-    segment.damping = segment.stiffness * 0.6
+    segment.stiffness = (segment.thickness ** 4) * 2000.0 # Bois de chêne : extrêmement raide
+    # Amortissement suffisant pour dissiper l'énergie du vent et éviter l'explosion numérique
+    segment.damping = segment.stiffness * 0.45
+    
+    # Ancrage absolu : on gèle presque tout l'arbre ! Seules les branches très fines (épaisseur < 0.08)
+    # pourront bouger. La forme globale de l'arbre restera donc parfaitement statique.
+    segment.is_kinematic = segment.thickness > 0.08
 
 for root in roots:
     init_physics_properties(root)
@@ -89,7 +95,8 @@ num_segments = len(all_segments)
 # Les tableaux Numpy sont directement passés à la carte graphique (zéro surcoût)
 points = np.zeros((num_segments * 2, 3), dtype=np.float32)
 lines = np.zeros((num_segments, 3), dtype=np.int32)
-thicknesses = np.zeros(num_segments, dtype=np.float32)
+# L'épaisseur doit être définie pour chaque sommet (point_data) et non chaque cellule
+thicknesses = np.zeros(num_segments * 2, dtype=np.float32)
 
 # Remplissage des tableaux géométriques et création d'un feuillage volumétrique
 import random
@@ -100,14 +107,23 @@ for i, seg in enumerate(all_segments):
     lines[i, 0] = 2
     lines[i, 1] = i * 2
     lines[i, 2] = i * 2 + 1
-    thicknesses[i] = seg.thickness
+    
+    # Le secret d'un arbre organique continu (tapering) :
+    # La base du segment prend EXACTEMENT l'épaisseur de son parent !
+    if seg.parent is not None:
+        thicknesses[i * 2] = seg.parent.thickness
+    else:
+        thicknesses[i * 2] = seg.thickness * 1.3 # Racine de l'arbre un peu plus évasée (réalisme)
+        
+    # Le sommet du segment prend l'épaisseur de la branche actuelle
+    thicknesses[i * 2 + 1] = seg.thickness
     
     if getattr(seg, 'has_leaf', False):
-        # 1 grand cluster/feuille par extrémité pour garantir 60 FPS constants sans surcharger Python
-        for _ in range(1):
-            # Décalage aléatoire
+        # 3 petites feuilles par extrémité pour recréer un nuage organique
+        for _ in range(3):
+            # Décalage aléatoire autour de la branche
             u = np.random.normal(0, 1, 3)
-            u = u / np.linalg.norm(u) * np.random.uniform(0.2, 1.8)
+            u = u / np.linalg.norm(u) * np.random.uniform(0.1, 0.7)
             leaf_offsets_list.append(u)
             leaf_parent_indices_list.append(i)
             # Orientation aléatoire de la feuille
@@ -119,32 +135,9 @@ leaf_parent_indices = np.array(leaf_parent_indices_list, dtype=np.int32)
 num_leaves = len(leaf_offsets)
 leaf_points = np.zeros((num_leaves, 3), dtype=np.float32)
 
-# Création des objets géométriques VTK
-mesh_branches = pv.PolyData(points, lines=lines)
-mesh_branches.cell_data['thickness'] = thicknesses
-
-mesh_leaves = pv.PolyData(leaf_points)
-mesh_leaves['orient'] = np.array(leaf_orient_list, dtype=np.float32)
-mesh_leaves.active_vectors_name = 'orient'
-
-# Forme géométrique d'une feuille (un grand losange aplati pour compenser la réduction du nombre)
-base_leaf = pv.Sphere(theta_resolution=4, phi_resolution=4, radius=1.5)
-base_leaf.points[:, 2] *= 0.1 # On aplatit la sphère pour en faire une feuille plate
-
-# Génération initiale des feuilles
-leaf_glyphs = mesh_leaves.glyph(geom=base_leaf, orient='orient', factor=1.0)
-
-plotter = pv.Plotter(title="Simulation 3D Hyper-Réaliste - PyVista")
-plotter.set_background('#87ceeb') # Bleu ciel
-
-# On dessine les branches (shaders natifs)
-plotter.add_mesh(mesh_branches, scalars='thickness', cmap='copper', 
-                 render_lines_as_tubes=True, line_width=5, show_scalar_bar=False)
-
-# On dessine le feuillage
-leaf_actor = plotter.add_mesh(leaf_glyphs, color='#35b02a', opacity=0.9, lighting=True)
-
-# Matrice pour mettre l'arbre debout
+# ==========================================
+# 3. INITIALISATION DE LA PHYSIQUE
+# ==========================================
 rot_y_up = np.array([
     [0, 0, -1],
     [0, 1, 0],
@@ -158,6 +151,49 @@ def calc_absolute_positions(segment, start_pos):
     segment.end_pos = end_pos
     for child in segment.children:
         calc_absolute_positions(child, end_pos)
+
+# Pré-calcul des positions initiales pour éviter que PyVista ne plante sur des lignes de taille 0
+for root in roots:
+    engine.update_kinematics(root, parent_R_abs=rot_y_up)
+for root in roots:
+    calc_absolute_positions(root, np.array([0.0, 0.0, 0.0]))
+for i, seg in enumerate(all_segments):
+    points[i*2] = seg.start_pos
+    points[i*2+1] = seg.end_pos
+if num_leaves > 0:
+    leaf_points[:] = points[leaf_parent_indices * 2 + 1] + leaf_offsets
+
+# Création des objets géométriques VTK
+mesh_branches = pv.PolyData(points, lines=lines)
+# PyVista ignore "radius" quand absolute=True. Pour affiner l'arbre, on doit réduire le scalaire lui-même.
+# Un facteur de 0.45 redonne au tronc son épaisseur normale
+mesh_branches.point_data['thickness'] = thicknesses * 0.45
+
+mesh_leaves = pv.PolyData(leaf_points)
+mesh_leaves['orient'] = np.array(leaf_orient_list, dtype=np.float32)
+mesh_leaves.active_vectors_name = 'orient'
+
+# Forme géométrique d'une vraie petite feuille (sphère aplatie)
+base_leaf = pv.Sphere(theta_resolution=5, phi_resolution=5, radius=0.65)
+base_leaf.points[:, 2] *= 0.15 # Forme de feuille plate et ovale
+
+# Génération initiale des feuilles
+leaf_glyphs = mesh_leaves.glyph(geom=base_leaf, orient='orient', factor=1.0)
+
+plotter = pv.Plotter(title="Simulation 3D Hyper-Réaliste - PyVista")
+plotter.set_background('#87ceeb') # Bleu ciel
+
+# On génère des tubes 3D réels pour le tronc, dont le rayon dépend de l'épaisseur physique
+# L'augmentation de n_sides à 12 rend les cylindres parfaitement ronds au lieu de facettés
+mesh_tubes = mesh_branches.tube(scalars='thickness', absolute=True, n_sides=12)
+
+# On dessine les branches (vrais tubes 3D lissés)
+# Un bois uni et sombre (la lumière VTK se chargera des dégradés naturels via les ombres)
+branches_actor = plotter.add_mesh(mesh_tubes, color='#4A3320', 
+                                  show_scalar_bar=False, smooth_shading=True)
+
+# On dessine le feuillage avec un vert riche et profond
+leaf_actor = plotter.add_mesh(leaf_glyphs, color='#2c7a26', opacity=0.9, lighting=True)
 
 def update_points():
     for root in roots:
@@ -176,6 +212,10 @@ def update_points():
     mesh_leaves.points = leaf_points
     new_glyphs = mesh_leaves.glyph(geom=base_leaf, orient='orient', factor=1.0)
     leaf_actor.mapper.dataset = new_glyphs
+    
+    # Recalcul des tubes du tronc pour qu'ils suivent le mouvement
+    new_tubes = mesh_branches.tube(scalars='thickness', absolute=True, n_sides=12)
+    branches_actor.mapper.dataset = new_tubes
 
 # Première frame
 for root in roots:
