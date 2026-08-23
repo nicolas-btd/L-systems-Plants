@@ -42,7 +42,7 @@ class PhysicsEngine3D:
         for child in segment.children:
             self.update_kinematics(child, segment.absolute_R)
 
-    def compute_torque(self, segment, current_time, wind_params):
+    def compute_torque(self, segment, current_time, wind_params, wind_multiplier=1.0, phase_offset=0.0):
         """Calcule le couple total sur un segment, exprimé dans son REPÈRE LOCAL."""
         # 1. Couple de Rappel (Raideur locale)
         restoring_torque = -segment.stiffness * segment.theta
@@ -57,12 +57,12 @@ class PhysicsEngine3D:
         
         # Cycle de vent naturel (vent de base + rafales superposées)
         freq = wind_params["wind_frequency"]
-        t = current_time
-        # Des bourrasques espacées par des moments de calme plat (vent = 0)
-        # Le 'max(0.0, ...)' annule le vent lors des phases négatives du sinus.
-        # L'arbre va donc naturellement revenir à sa position statique et s'y stabiliser.
+        
+        t = current_time - phase_offset
+        
         base_wind = math.sin(2 * math.pi * freq * t) + 0.5 * math.sin(2 * math.pi * (freq * 2.37) * t)
-        gust = max(0.0, base_wind * 1.2)
+        
+        gust = max(0.0, base_wind * 1.2) * wind_multiplier
         
         # On utilise une échelle non linéaire pour la force du vent (aéroélasticité simulée)
         # Cela évite que les brindilles (qui ont une très faible rigidité) ne soient arrachées, 
@@ -97,13 +97,13 @@ class PhysicsEngine3D:
             
         return restoring_torque + wind_torque_local + coupling_torque
 
-    def update_segment(self, segment, current_time, wind_params):
+    def update_segment(self, segment, current_time, wind_params, wind_multiplier=1.0, phase_offset=0.0):
         if getattr(segment, 'is_kinematic', False):
-            # Le tronc est un bloc de béton : il refuse de plier (theta=0)
+            
             segment.theta = np.zeros(3)
             segment.omega = np.zeros(3)
         else:
-            total_torque = self.compute_torque(segment, current_time, wind_params)
+            total_torque = self.compute_torque(segment, current_time, wind_params, wind_multiplier, phase_offset)
             
             # PFD vectoriel : alpha = Tau / I
             angular_accel = total_torque / segment.inertia
@@ -114,7 +114,7 @@ class PhysicsEngine3D:
             segment.theta += segment.omega * self.dt
         
         for child in segment.children:
-            self.update_segment(child, current_time, wind_params)
+            self.update_segment(child, current_time, wind_params, wind_multiplier, phase_offset)
 
     def step(self, roots, current_time, wind_params):
         # 1. Cinématique

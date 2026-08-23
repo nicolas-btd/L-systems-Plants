@@ -19,14 +19,9 @@ class PhysicsEngine:
         # Cycle de rafale (ex: actif pendant gust_duration, puis repos)
         cycle_time = current_time % (gust_duration * 3)
         if cycle_time < gust_duration:
-            # L'angle absolu donne l'orientation de la branche par rapport à la verticale
-            # 0 rad = vertical (tourné vers le haut). 
-            # Plus la branche est proche de la verticale, plus le vent horizontal pousse.
-            abs_angle = segment.get_absolute_angle()
+                                                abs_angle = segment.get_absolute_angle()
             
-            # Prise au vent (cos(angle) car si angle=0, cos=1 -> force max)
-            # Si angle=pi/2 (horizontal), cos=0 -> pas de prise au vent horizontal (idéalisé)
-            effective_area = math.cos(abs_angle)
+                                    effective_area = math.cos(abs_angle)
             if getattr(segment, 'has_leaf', False):
                 effective_area *= 5.0 # Les feuilles offrent une grande prise au vent
             
@@ -76,8 +71,7 @@ class PhysicsEngine:
         angular_accel = total_torque / segment.inertia
         
         # Intégration d'Euler semi-implicite avec amortissement implicite
-        # Cela garantit une stabilité absolue même avec un fort amortissement
-        damping_factor = segment.damping / segment.inertia
+                damping_factor = segment.damping / segment.inertia
         segment.omega = (segment.omega + angular_accel * self.dt) / (1.0 + damping_factor * self.dt)
         segment.theta += segment.omega * self.dt
         
