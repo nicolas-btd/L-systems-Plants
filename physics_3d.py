@@ -98,15 +98,15 @@ class PhysicsEngine3D:
         return restoring_torque + wind_torque_local + coupling_torque
 
     def update_segment(self, segment, current_time, wind_params, wind_multiplier=1.0, phase_offset=0.0):
+        # On calcule toujours le couple pour mesurer la force subie
+        segment.total_torque = self.compute_torque(segment, current_time, wind_params, wind_multiplier, phase_offset)
+        
         if getattr(segment, 'is_kinematic', False):
-            
             segment.theta = np.zeros(3)
             segment.omega = np.zeros(3)
         else:
-            total_torque = self.compute_torque(segment, current_time, wind_params, wind_multiplier, phase_offset)
-            
             # PFD vectoriel : alpha = Tau / I
-            angular_accel = total_torque / segment.inertia
+            angular_accel = segment.total_torque / segment.inertia
             
             # Euler semi-implicite vectoriel
             damping_factor = segment.damping / segment.inertia

@@ -46,6 +46,12 @@ print("Génération du modèle mathématique de la forêt...")
 system = LSystem3D(AXIOM, RULES)
 sentence = system.generate(ITERATIONS)
 
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--layout", type=str, choices=["random", "grid", "quinconce"], default="random", help="Schéma de plantation de la forêt.")
+args = parser.parse_args()
+
 NUM_TREES = 7
 FOREST_SIZE = 30.0 # Terrain de 30x30 mètres
 
@@ -53,15 +59,38 @@ forest_roots = []
 tree_positions = []
 
 import random
-for i in range(NUM_TREES):
-    # Variations structurelles via le bruit
-    r = parse_to_graph_3d(sentence, ANGLE_INCREMENT, SEGMENT_LENGTH, noise=NOISE, tropism_vector=TROPISM_VECTOR, tropism_factor=TROPISM_FACTOR)
-    forest_roots.extend(r)
+
+# Génération des positions selon le schéma choisi
+if args.layout == "random":
+    for i in range(NUM_TREES):
+        x = random.uniform(-FOREST_SIZE/2, FOREST_SIZE/2)
+        y = random.uniform(-FOREST_SIZE/2, FOREST_SIZE/2)
+        tree_positions.append(np.array([x, y, 0.0], dtype=np.float32))
+else:
+    # Schémas structurés : 4x4 arbres (16 arbres)
+    rows, cols = 4, 4
+    spacing_x = 6.0 # Le vent souffle selon X, c'est la distance entre les lignes de front
+    spacing_y = 6.0 # Distance latérale
+    start_x = - (cols - 1) * spacing_x / 2.0
+    start_y = - (rows - 1) * spacing_y / 2.0
     
-    # Positionnement aléatoire
-    x = random.uniform(-FOREST_SIZE/2, FOREST_SIZE/2)
-    y = random.uniform(-FOREST_SIZE/2, FOREST_SIZE/2)
-    tree_positions.append(np.array([x, y, 0.0], dtype=np.float32))
+    for r in range(rows):
+        for c in range(cols):
+            x = start_x + c * spacing_x
+            y = start_y + r * spacing_y
+            if args.layout == "quinconce" and c % 2 == 1:
+                # En quinconce, on décale une colonne sur deux (car le vent souffle selon X, donc on décale latéralement en Y)
+                y += spacing_y / 2.0
+            tree_positions.append(np.array([x, y, 0.0], dtype=np.float32))
+    NUM_TREES = len(tree_positions)
+
+for i in range(NUM_TREES):
+    # Phase 3 - Étape 1 : Pour la rigueur scientifique, on utilise la même échelle (1.0)
+    tree_scale = 1.0 if args.layout != "random" else random.uniform(0.7, 1.4)
+    
+    # Variations structurelles via le bruit
+    r = parse_to_graph_3d(sentence, ANGLE_INCREMENT, SEGMENT_LENGTH * tree_scale, noise=NOISE, tropism_vector=TROPISM_VECTOR, tropism_factor=TROPISM_FACTOR * tree_scale)
+    forest_roots.extend(r)
 
 def init_physics_properties(segment, depth=0):
     thickness_pow = 0
