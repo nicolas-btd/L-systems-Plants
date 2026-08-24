@@ -101,9 +101,9 @@ def main():
 
         segment.mass = (segment.thickness ** 2) * 0.2
         segment.inertia += segment.mass
-        segment.stiffness = (segment.thickness ** 4) * 500.0
-        segment.damping = segment.stiffness * 0.45
-        segment.is_kinematic = segment.thickness > 0.12
+        segment.stiffness = (segment.thickness ** 4) * 1200.0  # Rigidité accrue (moins de flexion excessive)
+        segment.damping = segment.stiffness * 0.5
+        segment.is_kinematic = segment.thickness > 0.09  # Tronc et branches maîtresses plus fermes
 
     for root in forest_roots:
         init_physics_properties(root)
@@ -266,8 +266,9 @@ def main():
             
             for i, root in enumerate(forest_roots):
                 tree_exposure = multipliers[i]
-                tree_sway = math.sin(t * 3.0 + phases[i]) * 0.15 + (stress_level * 2.5 * tree_exposure)
-                bend_angle = min(0.35, tree_sway)
+                # Flexion dynamique plus mesurée (arbres plus rigides)
+                tree_sway = math.sin(t * 2.5 + phases[i]) * 0.05 + (stress_level * 1.1 * tree_exposure)
+                bend_angle = min(0.15, tree_sway) # Angle maximal limité à ~8.5 degrés
                 
                 c_b, s_b = math.cos(bend_angle), math.sin(bend_angle)
                 R_bend = np.array([
@@ -280,7 +281,7 @@ def main():
                 def apply_ai_flex(seg, R_parent, depth=0):
                     seg.absolute_R = R_parent @ seg.R_base
                     for ch in seg.children:
-                        extra_sway = math.sin(t * 5.0 + depth) * 0.05 if not ch.children else 0.0
+                        extra_sway = math.sin(t * 4.0 + depth) * 0.02 if not ch.children else 0.0
                         R_extra = np.eye(3)
                         if extra_sway != 0:
                             R_extra[0, 0] = math.cos(extra_sway)

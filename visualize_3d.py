@@ -107,12 +107,9 @@ def init_physics_properties(segment, depth=0):
 
     segment.mass = (segment.thickness ** 2) * 0.2
     segment.inertia += segment.mass
-    segment.stiffness = (segment.thickness ** 4) * 500.0 
-    
-    segment.damping = segment.stiffness * 0.45
-    
-    # Seules les branches fines sont dynamiques
-    segment.is_kinematic = segment.thickness > 0.12
+    segment.stiffness = (segment.thickness ** 4) * 1200.0  # Rigidité accrue
+    segment.damping = segment.stiffness * 0.5
+    segment.is_kinematic = segment.thickness > 0.09  # Tronc et branches fermes
 
 for root in forest_roots:
     init_physics_properties(root)
