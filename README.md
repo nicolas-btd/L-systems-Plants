@@ -1,92 +1,153 @@
-# Modélisation de l'Action du Vent sur une Forêt (L-Systems)
+# Modélisation Aéroélastique & Émulation IA d'Écosystèmes Forestiers 3D (L-Systems)
 
-## 1. Introduction au Projet
-Ce projet personnel a pour objectif de modéliser mathématiquement et physiquement le comportement d'un couvert végétal (une forêt) soumis à des rafales de vent.
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg?style=flat-square&logo=python)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-Deep%20Learning-EE4C2C.svg?style=flat-square&logo=pytorch)](https://pytorch.org/)
+[![PyVista](https://img.shields.io/badge/PyVista-3D%20Rendering-37B6BD.svg?style=flat-square)](https://pyvista.org/)
+[![AI for Science](https://img.shields.io/badge/AI%20for%20Science-Surrogate%20Modeling-059669.svg?style=flat-square)](https://github.com/nicolas-btd/L-systems-Plants)
 
-Plutôt que de modéliser des arbres de manière arbitraire, nous utilisons les **L-Systems** (Systèmes de Lindenmayer) pour générer procéduralement la structure fractale des arbres. Ensuite, nous appliquons un modèle physique dynamique (basé sur le théorème du moment cinétique et l'intégration d'Euler) sur cette structure ramifiée.
-
----
-
-## 2. Architecture du Projet
-
-Le projet sera construit de manière très structurée et incrémentale, en validant chaque palier de complexité avant de passer au suivant :
-
-1. **Arbre Isolé (2D) avec Vent** :
-   - Génération d'un arbre simple en 2D via L-Systems.
-   - Application du moteur physique (Euler) pour simuler la torsion des branches sous l'effet du vent.
-   - Visualisation et affinage des paramètres (raideur, masse, amortissement).
-2. **Arbre Isolé (3D) Réaliste** :
-   - Passage de la génération et de la physique en 3 dimensions.
-   - Amélioration du réalisme visuel et mécanique (prise au vent selon l'orientation spatiale 3D).
-3. **Modélisation d'une Forêt** :
-   - Instanciation de multiples arbres.
-   - Prise en compte de la dynamique des fluides simplifiée (atténuation du vent par le feuillage des premiers arbres) et des collisions/couplages.
+> Modélisation physique, dynamique des fluides et émulation par Deep Learning (*Surrogate Modeling / Physics-Informed ML*) d'une forêt sous rafales de vent en temps réel (60 FPS).
 
 ---
 
-## 3. Modélisation du Moteur 3D (Terminée)
-
-La modélisation de l'arbre en 3D ainsi que la génération d'une forêt sont désormais **terminées**. Un moteur de simulation complet a été implémenté avec succès :
-- **Génération Spatiale (L-System)** : Les arbres poussent désormais dans un espace en trois dimensions. Ils peuvent s'orienter librement dans toutes les directions (inclinaisons et rotations) pour créer des branchages réalistes.
-- **Physique 3D Rigoureuse** : Le moteur calcule les forces exactes (inertie, torsion) subies par chaque branche grâce à des mathématiques vectorielles avancées pour simuler leur résistance au vent.
-- **Moteur Graphique** : Rendu interactif et optimisé de la forêt via les bibliothèques scientifiques PyVista et VTK.
+<div align="center">
+  <img src="docs/img/forest_sway_demo.gif" alt="Démonstration de la Forêt 3D en mouvement" width="750"/>
+  <p><em>Rendu 3D temps réel d'un couvert forestier dynamique sous vent oscillant (PyVista / VTK).</em></p>
+</div>
 
 ---
 
-## 4. Applications à la Sylviculture
+## Sommaire
 
-Maintenant que le modèle mathématique et physique est robuste, le projet se concentre sur des expériences pratiques liées à la sylviculture et à la gestion forestière.
-
-**Objectif Actuel : Topologie de plantation et résistance au vent**
-L'objectif est de placer une forêt de dimension fixe sous une forte tempête et de mesurer mathématiquement le stress mécanique subi par les arbres en fonction de leur schéma de plantation. 
-Nous comparerons deux configurations classiques :
-- **La plantation alignée (Grille)** : Les arbres sont disposés en rangées et colonnes parfaites.
-- **La plantation en quinconce** : Les rangées sont décalées pour tenter de bloquer les couloirs de vent.
-
-Cette expérience nous a permis de confronter notre modèle aux observations réelles des forestiers (qui recommandent généralement le quinconce ou des lisières progressives) et d'améliorer notre simulation en y intégrant de véritables principes de dynamique des fluides.
-
-**Résultats de l'expérience : Le Triomphe du Quinconce**
-En intégrant les turbulences directionnelles (oscillations du vent pendant la tempête) et l'**Effet Venturi** (l'air s'accélère lorsqu'il traverse un espace étroit entre deux arbres), notre modèle physique valide parfaitement les pratiques sylvicoles :
-- **La Grille Alignée (Échec)** : Le vent s'engouffre dans les longs "couloirs" vides et s'y accélère violemment. Au moindre changement de direction de la rafale, ces jets d'air à haute vitesse frappent les arbres arrière de plein fouet. Le stress mécanique atteint des pics destructeurs.
-- **Le Quinconce (Succès)** : Les arbres étant décalés, ils bloquent physiquement toute formation de couloirs. Le flux d'air rebondit constamment sur un tronc et ne peut pas accumuler de vitesse. La forêt encaisse la tempête comme un mur homogène, réduisant le stress mécanique maximal de plus de 25% !
-
-**Expérience 2 : Lisière Progressive (Étagée)**
-Nous avons ensuite simulé une lisière étagée : planter des arbres plus jeunes et plus souples en bordure de la forêt (échelle 0.5 puis 0.75), pour protéger le cœur de la parcelle (échelle 1.0).
-- Le modèle confirme que la bordure étagée agit comme un "tremplin" aérodynamique. 
-- La lisière progressive réduit le stress moyen global de la forêt et abaisse le pic de stress subi par les arbres adultes, démontrant la pertinence de cette méthode de plantation pour limiter le déracinement des fûts de valeur.
+- [1. Introduction & Vision](#1-introduction--vision)
+- [2. Fondements Mathématiques & Physiques](#2-fondements-mathématiques--physiques)
+  - [Génération Fractale 3D (L-Systems)](#génération-fractale-3d-l-systems)
+  - [Moteur Physique & Théorème du Moment Cinétique](#moteur-physique--théorème-du-moment-cinétique)
+  - [Couplage Aérodynamique & Effet Venturi](#couplage-aérodynamique--effet-venturi)
+- [3. Expériences & Résultats en Sylviculture](#3-expériences--résultats-en-sylviculture)
+  - [Expérience 1 : Topologie en Grille vs Quinconce](#expérience-1--topologie-en-grille-vs-quinconce)
+  - [Expérience 2 : Lisières Étagées et Protection Aérodynamique](#expérience-2--lisières-étagées-et-protection-aérodynamique)
+- [4. Intelligence Artificielle : Émulateur Surrogate (Physics-Informed ML)](#4-intelligence-artificielle--émulateur-surrogate-physics-informed-ml)
+  - [Architecture Neuronale `ForestSurrogateNet`](#architecture-neuronale-forestsurrogatenet)
+  - [Benchmark & Accélération (> 200x)](#benchmark--accélération--200x)
+- [5. Visualisation 3D Interactive & Comparateur](#5-visualisation-3d-interactive--comparateur)
+- [6. Guide d'Installation & Utilisation](#6-guide-dinstallation--utilisation)
 
 ---
 
-## 5. Intelligence Artificielle & Émulation Temps Réel (AI for Science & Jeux Vidéo)
+## 1. Introduction & Vision
 
-Bien que le solveur physique (intégration numérique d'Euler pas à pas) soit mathématiquement rigoureux, il devient **trop coûteux en temps de calcul** dès que l'on simule des centaines d'arbres ou que l'on souhaite intégrer cette physique dans des **applications interactives et des jeux vidéo (60 FPS constants)**.
+L'objectif de ce projet est de concevoir un **Jumeau Numérique (*Digital Twin*)** complet d'une forêt soumise à des tempêtes, combinant :
+1. **Morphogenèse computationnelle** par grammaires formelles (L-Systems 3D).
+2. **Dynamique des structures et aéroélasticité** par résolution différentielle semi-implicite.
+3. **Deep Learning & Surrogate Modeling** pour accélérer le calcul de plusieurs ordres de grandeur et permettre une intégration fluide (60 FPS) dans des moteurs de jeux vidéo, simulateurs d'impact climatique et outils de gestion forestière.
 
-### Objectif :
-Remplacer le calcul différentiel itératif par un **Émulateur par Réseau de Neurones (*Surrogate Model / Physics-Informed ML*)** capable d'estimer instantanément la flexion et le stress mécanique de chaque arbre sous n'importe quelle tempête en moins d'une milliseconde.
+---
 
-### Étape 1 : Moteur de Données Synthétiques (`ai_surrogate/dataset_generator.py`)
-- Le moteur physique 3D sert de **Jumeau Numérique (*Digital Twin*)** pour générer automatiquement des centaines de simulations variées (vitesses $15-45\,\text{m/s}$, angles $0-360^\circ$, turbulences, espacements, topologies).
-- Exécution massivement parallélisée sur l'ensemble des cœurs CPU (`ProcessPoolExecutor`) pour extraire les vérités terrain physiques (*Ground Truth*).
+## 2. Fondements Mathématiques & Physiques
 
-### Étape 2 : Architecture Neuronale Physics-Informed (`ai_surrogate/model.py`)
-- **Réseau de Neurones Résiduel (`ForestSurrogateNet`)** : Architecture MLP profonde à blocs résiduels (`LayerNorm` + `GELU`) prévenant la dégradation du gradient et capturant les interactions non-linéaires complexes.
-- **Physics-Informed Feature Engineering** : Injection directe des lois aérodynamiques dans le tenseur d'entrée (pression dynamique en $v^2$, projections trigonométriques du vecteur de vent $\cos \theta, \sin \theta$, et densité surfacique de plantation).
+### Génération Fractale 3D (L-Systems)
+La géométrie des arbres est générée de façon procédurale par un **L-System stochastique tridimensionnel** (Système de Lindenmayer). À partir d'un axiome et de règles de réécriture multiaxiales (`+`, `-`, `&`, `^`, `/`, `\`), la structure ramifiée est construite sous forme de graphe arborescent orienté.
 
-### Étape 3 : Pipeline d'Entraînement & Métriques de Validation (`ai_surrogate/train.py`)
-- **Entraînement & Optimisation** : Optimiseur AdamW, fonction de perte MSE sur variables standardisées (`StandardScaler`), et régulateur de taux d'apprentissage Cosine Annealing.
-- **Métriques Scientifiques** : Calcul rigoureux du coefficient de détermination ($R^2$), de l'erreur quadratique moyenne (RMSE) et de l'erreur absolue (MAE) sur l'ensemble de test (20% hold-out).
-- **Évaluation Graphique (`ai_surrogate/surrogate_metrics.png`)** : Génération automatique des courbes de perte et du graphique de parité (*Parity Plot*) démontrant la corrélation physique/IA.
+Pour assurer la cohérence biomécanique, les épaisseurs des branches suivent la **Loi de Murray** :
+$$r_{\text{parent}}^{2.5} = \sum r_{\text{enfants}}^{2.5}$$
+Chaque segment possède sa masse propre $m_i$, son tenseur d'inertie local $I_i$, sa raideur élastique $k_i \propto r_i^3$ et son amortissement visqueux $\gamma_i$.
 
-### Étape 4 : Inférence Temps Réel & Benchmark de Vitesse (`ai_surrogate/benchmark_inference.py`)
-- **Module d'Inférence Déployable (`ForestSurrogatePredictor`)** : Permet une évaluation unitaire ou par lot (*batch inference*) à partir d'un simple dictionnaire de paramètres.
-- **Résultats du Benchmark Comparatif** :
+### Moteur Physique & Théorème du Moment Cinétique
+Le comportement dynamique de chaque branche est régi par le théorème du moment cinétique exprimé dans son repère local :
 
-| Méthode | Temps moyen par simulation | Facteur d'Accélération |
-| :--- | :--- | :--- |
-| **Solveur Numérique 3D (Euler)** | ~650 ms | $1\times$ (Référence) |
-| **Émulateur IA (`ForestSurrogateNet`)** | **~2.3 ms** | **$\approx 275\times$ PLUS RAPIDE** |
+$$I_i \frac{d\vec{\omega}_i}{dt} = \vec{\tau}_{\text{rappel}} + \vec{\tau}_{\text{vent}} + \vec{\tau}_{\text{couplage}} - \gamma_i \vec{\omega}_i$$
 
-### Étape 5 : Visualisation Interactive & Comparateur 3D (`visualize_forest_comparison.py`)
-- **Scène 3D Complète** : Rendu volumétrique d'un grand couvert forestier (arbres fractals 3D et feuillage vert).
-- **Bascule en Direct (Touche `M`)** : Permet à l'utilisateur de basculer instantanément entre le mode **🔴 Physique Classique** (résolution Euler) et le mode **🟢 Émulateur IA** pour constater la différence immédiate de fluidité (FPS et latence en millisecondes affichés en surimpression).
+- **Couple de rappel élastique** : $\vec{\tau}_{\text{rappel}} = -k_i \vec{\theta}_i$ (avec clamping biologique de l'élongation).
+- **Force de traînée du vent** : $\vec{F}_{\text{vent}} = \frac{1}{2} \rho C_d A_{\text{eff}} \|\vec{v}_{\text{rel}}\| \vec{v}_{\text{rel}}$.
+- **Intégration temporelle** : Schéma d'Euler semi-implicite assurant une stabilité numérique inconditionnelle.
 
+### Couplage Aérodynamique & Effet Venturi
+Le vent traversant le couvert végétal n'est pas uniforme :
+1. **Sillage & Ombrage (*Wake Shadowing*)** : Les arbres de première ligne absorbent l'énergie cinétique du fluide et créent une zone d'abri pour les rangs arrières.
+2. **Effet Venturi & Turbulences** : Les couloirs étroits accélèrent localement le flux d'air lors des variations de direction de la rafale.
+
+---
+
+## 3. Expériences & Résultats en Sylviculture
+
+Le modèle physique a servi de banc d'essai pour évaluer l'impact des techniques de plantation sylvicoles face aux tempêtes :
+
+<div align="center">
+  <img src="docs/img/forestry_experiments.png" alt="Résultats Expériences Sylviculture" width="850"/>
+</div>
+
+### Expérience 1 : Topologie en Grille vs Quinconce
+- **Grille Alignée (Échec)** : Le vent s'engouffre dans les allées rectilignes et s'y accélère par effet Venturi, créant des pics de contrainte destructeurs sur les arbres arrière lors des changements d'angle.
+- **Plantation en Quinconce (Succès)** : Le décalage des rangs brise les couloirs rectilignes et force la dissipation tourbillonnaire. **Réduction de 26.3% du pic de stress maximal**.
+
+### Expérience 2 : Lisières Étagées et Protection Aérodynamique
+Planter des arbres plus jeunes et plus souples en bordure de parcelle (échelle 0.5 puis 0.75) crée un **tremplin aérodynamique** qui dévie les lignes de courant au-dessus de la canopée, protégeant les fûts de valeur au centre de la parcelle (**baisse de 27.7% du stress pic**).
+
+---
+
+## 4. Intelligence Artificielle : Émulateur Surrogate (Physics-Informed ML)
+
+Bien que le solveur numérique soit rigoureux, intégrer pas-à-pas 30 à 60 sous-pas de dynamique pour chaque arbre demande un temps de calcul prohibitif (> 600 ms par scène), rendant la simulation en temps réel impossible sur de grands peuplements.
+
+<div align="center">
+  <img src="docs/img/surrogate_metrics.png" alt="Performances du Modèle Surrogate" width="850"/>
+  <p><em>Convergence de la perte MSE et Parity Plot (Physique vs IA) sur l'ensemble de test.</em></p>
+</div>
+
+### Architecture Neuronale `ForestSurrogateNet`
+L'émulateur IA remplace le solveur numérique par un réseau de neurones profond enrichi de descripteurs physiques (*Physics-Informed Feature Engineering*) :
+- **Tenseur d'entrée (14 dimensions)** : Inclut la pression dynamique quadratique ($v^2$), les projections vectorielles $(\cos \theta, \sin \theta)$, l'amplitude d'oscillation, la topologie et la densité surfacique de plantation.
+- **Réseau Résiduel** : Blocs résiduels avec `LayerNorm` et activations non-linéaires `GELU`.
+- **Prédictions instantanées** : `[mean_stress, max_stress, std_stress]`.
+
+### Benchmark & Accélération (> 200x)
+
+| Méthode | Temps moyen par simulation | Facteur d'Accélération | Utilisation Cible |
+| :--- | :--- | :--- | :--- |
+| **Solveur Numérique 3D (Euler)** | ~650 ms | $1\times$ (Référence) | Calcul scientifique hors-ligne |
+| **Émulateur IA (`ForestSurrogateNet`)** | **~2.3 ms** | **$\approx 275\times$ PLUS RAPIDE** | **Jeux vidéo, VFX & Rendu 60 FPS** |
+
+---
+
+## 5. Visualisation 3D Interactive & Comparateur
+
+Le visualiseur 3D interactif ([`visualize_forest_comparison.py`](visualize_forest_comparison.py)) permet de charger une forêt 3D complète et de basculer instantanément de mode en direct :
+
+- **Touche `M`** : Basculer entre **🔴 Mode Physique Classique** (Euler) et **🟢 Mode Émulateur IA** (Deep Learning).
+- **Affichage HUD** : Surveillance en temps réel du temps de calcul de la trame (ms) et du compteur de FPS.
+
+---
+
+## 6. Guide d'Installation & Utilisation
+
+### Installation
+```bash
+# 1. Cloner le dépôt
+git clone https://github.com/nicolas-btd/L-systems-Plants.git
+cd L-systems-Plants
+
+# 2. Installer les dépendances
+pip install -r requirements.txt
+```
+
+### Commandes Principales
+
+```bash
+# 1. Lancer le comparatif interactif 3D (Touche 'M' pour basculer de mode)
+python visualize_forest_comparison.py --rows 5 --cols 5 --layout quinconce
+
+# 2. Exécuter le benchmark de vitesse (Physique vs IA)
+python ai_surrogate/benchmark_inference.py
+
+# 3. Lancer les expériences de sylviculture (Grille vs Quinconce)
+python experiment_topology.py
+python experiment_lisiere.py
+
+# 4. Entraîner à nouveau le modèle Surrogate (400 simulations)
+python ai_surrogate/train.py
+```
+
+---
+
+## Auteur
+Projet développé par [Nicolas Boutaud](https://github.com/nicolas-btd) — Ingénierie & Modélisation IA.
