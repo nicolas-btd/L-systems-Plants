@@ -1,9 +1,9 @@
 """
 Moteur physique pour la simulation de l'action du vent sur un arbre.
 
-Il utilise une approche par intégration d'Euler explicite pour calculer
-les forces (raideur, frottements, vent) s'appliquant sur chaque segment (noeud)
-de l'arbre généré par L-System.
+Il utilise une intégration numérique d'Euler semi-implicite avec amortissement
+pour calculer la dynamique angulaire (raideur, dissipation, traînée aérodynamique)
+s'appliquant sur chaque segment de l'arbre généré par L-System.
 """
 import math
 
@@ -19,9 +19,8 @@ class PhysicsEngine:
         # Cycle de rafale (ex: actif pendant gust_duration, puis repos)
         cycle_time = current_time % (gust_duration * 3)
         if cycle_time < gust_duration:
-                                                abs_angle = segment.get_absolute_angle()
-            
-                                    effective_area = math.cos(abs_angle)
+            abs_angle = segment.get_absolute_angle()
+            effective_area = math.cos(abs_angle)
             if getattr(segment, 'has_leaf', False):
                 effective_area *= 5.0 # Les feuilles offrent une grande prise au vent
             
@@ -46,7 +45,7 @@ class PhysicsEngine:
         # M_rappel = - C1 * (theta - base_angle)
         restoring_torque = -segment.stiffness * (segment.theta - segment.base_angle)
         
-        # 2. (L'amortissement est maintenant géré de manière implicite dans update_segment pour la stabilité)
+        # 2. (L'amortissement est géré de manière implicite dans update_segment pour la stabilité)
         
         # 3. Action du vent
         wind_force = self.get_wind_force(segment, current_time, **wind_params)
@@ -62,7 +61,7 @@ class PhysicsEngine:
         return restoring_torque + wind_torque + coupling_torque
 
     def update_segment(self, segment, current_time, wind_params):
-        """Met à jour la physique d'un segment via Euler."""
+        """Met à jour la physique d'un segment via Euler semi-implicite."""
         # Calcul des moments
         total_torque = self.compute_torque(segment, current_time, wind_params)
         
@@ -71,7 +70,7 @@ class PhysicsEngine:
         angular_accel = total_torque / segment.inertia
         
         # Intégration d'Euler semi-implicite avec amortissement implicite
-                damping_factor = segment.damping / segment.inertia
+        damping_factor = segment.damping / segment.inertia
         segment.omega = (segment.omega + angular_accel * self.dt) / (1.0 + damping_factor * self.dt)
         segment.theta += segment.omega * self.dt
         

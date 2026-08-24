@@ -101,10 +101,10 @@ def main():
 
         segment.mass = (segment.thickness ** 2) * 0.2
         segment.inertia += segment.mass
-        # Raideur organique cubique (évite l'hyper-flexibilité des brindilles terminales)
-        segment.stiffness = (segment.thickness ** 3) * 450.0
-        segment.damping = segment.stiffness * 0.6
-        segment.is_kinematic = segment.thickness > 0.10
+        # Raideur quartique (moment quadratique d'une poutre circulaire I ~ r^4)
+        segment.stiffness = (segment.thickness ** 4) * 500.0
+        segment.damping = segment.stiffness * 0.45
+        segment.is_kinematic = segment.thickness > 0.12
 
     for root in forest_roots:
         init_physics_properties(root)

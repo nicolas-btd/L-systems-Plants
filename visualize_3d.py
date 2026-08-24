@@ -251,6 +251,17 @@ def update_points():
     new_tubes = mesh_branches.tube(scalars='thickness', absolute=True, n_sides=8)
     branches_actor.mapper.dataset = new_tubes
 
+def animation_callback(step):
+    current_time = step * FRAME_DT
+    # Mise à jour de la cinématique hiérarchique
+    for root in forest_roots:
+        engine.update_kinematics(root, parent_R_abs=rot_y_up)
+    # Intégration physique dynamique
+    for root in forest_roots:
+        engine.update_segment(root, current_time, WIND_PARAMS)
+    # Rafraîchissement des coordonnées géométriques VTK
+    update_points()
+
 # Première frame
 for root in forest_roots:
     engine.update_kinematics(root, parent_R_abs=rot_y_up)
