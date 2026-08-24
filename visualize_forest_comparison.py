@@ -171,10 +171,10 @@ def main():
 
     # 6. Scène PyVista
     plotter = pv.Plotter(title=f"Comparatif 3D Réaliste : Physique vs IA ({num_trees} arbres)")
-    plotter.set_background('#87ceeb')
+    plotter.set_background('#FFFFFF')
 
-    ground = pv.Plane(center=(0, 0, 0), direction=(0, 0, 1), i_size=forest_size * 1.5, j_size=forest_size * 1.5)
-    plotter.add_mesh(ground, color='#3c5a14', lighting=True)
+    ground = pv.Plane(center=(0, 0, -0.05), direction=(0, 0, 1), i_size=forest_size * 1.3, j_size=forest_size * 1.3)
+    plotter.add_mesh(ground, color='#C4A482', lighting=True)
 
     mesh_branches = pv.PolyData(points, lines=lines)
     mesh_branches.point_data['thickness'] = thicknesses * 0.45
@@ -267,9 +267,9 @@ def main():
             
             for i, root in enumerate(forest_roots):
                 tree_exposure = multipliers[i]
-                # Flexion dynamique plus mesurée (arbres plus rigides)
-                tree_sway = math.sin(t * 2.5 + phases[i]) * 0.05 + (stress_level * 1.1 * tree_exposure)
-                bend_angle = min(0.15, tree_sway) # Angle maximal limité à ~8.5 degrés
+                # Flexion dynamique bien visible et naturelle (~11 degrés max)
+                tree_sway = math.sin(t * 2.2 + phases[i]) * 0.08 + (stress_level * 1.4 * tree_exposure)
+                bend_angle = min(0.19, tree_sway)
                 
                 c_b, s_b = math.cos(bend_angle), math.sin(bend_angle)
                 R_bend = np.array([
@@ -282,7 +282,7 @@ def main():
                 def apply_ai_flex(seg, R_parent, depth=0):
                     seg.absolute_R = R_parent @ seg.R_base
                     for ch in seg.children:
-                        extra_sway = math.sin(t * 4.0 + depth) * 0.02 if not ch.children else 0.0
+                        extra_sway = math.sin(t * 3.0 + depth * 0.8) * 0.03 if not ch.children else 0.01
                         R_extra = np.eye(3)
                         if extra_sway != 0:
                             R_extra[0, 0] = math.cos(extra_sway)
@@ -332,11 +332,13 @@ def main():
             f"Fluidité globale : {state['fps']:.0f} FPS\n"
             f"\n[Appuyez sur 'M' pour basculer instantanément de mode]"
         )
-        plotter.add_text(hud_text, position="upper_left", font_size=11, color="white", shadow=True, name="hud_overlay")
+        plotter.add_text(hud_text, position="upper_left", font_size=11, color="black", shadow=False, name="hud_overlay")
 
     plotter.camera_position = 'yz'
-    plotter.camera.elevation = 20
-    plotter.camera.zoom(0.85)
+    plotter.camera.focal_point = (0.0, 0.0, 3.5)
+    plotter.camera.elevation = 18
+    plotter.camera.azimuth = -25
+    plotter.camera.zoom(1.2)
 
     # Boucle d'animation temps réel native
     plotter.show(interactive_update=True, auto_close=False)
