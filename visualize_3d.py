@@ -218,11 +218,11 @@ base_leaf.points[:, 2] *= 0.15 # Forme de feuille plate et ovale
 leaf_glyphs = mesh_leaves.glyph(geom=base_leaf, orient='orient', factor=1.0)
 
 plotter = pv.Plotter(title="Simulation 3D Hyper-Réaliste - PyVista")
-plotter.set_background('#87ceeb') # Bleu ciel
+plotter.set_background('#FFFFFF') # Fond blanc épuré
 
 # Ajout du terrain
-ground = pv.Plane(center=(0, 0, 0), direction=(0, 0, 1), i_size=FOREST_SIZE * 1.2, j_size=FOREST_SIZE * 1.2)
-plotter.add_mesh(ground, color='#3c5a14', lighting=True)
+ground = pv.Plane(center=(0, 0, -0.05), direction=(0, 0, 1), i_size=FOREST_SIZE * 1.2, j_size=FOREST_SIZE * 1.2)
+plotter.add_mesh(ground, color='#345318', lighting=True)
 
 # On génère des tubes 3D pour le tronc
 mesh_tubes = mesh_branches.tube(scalars='thickness', absolute=True, n_sides=8)
