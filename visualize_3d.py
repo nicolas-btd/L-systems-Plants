@@ -222,7 +222,7 @@ plotter.set_background('#FFFFFF') # Fond blanc épuré
 
 # Ajout du terrain
 ground = pv.Plane(center=(0, 0, -0.05), direction=(0, 0, 1), i_size=FOREST_SIZE * 1.2, j_size=FOREST_SIZE * 1.2)
-plotter.add_mesh(ground, color='#345318', lighting=True)
+plotter.add_mesh(ground, color='#C4A482', lighting=True)
 
 # On génère des tubes 3D pour le tronc
 mesh_tubes = mesh_branches.tube(scalars='thickness', absolute=True, n_sides=8)

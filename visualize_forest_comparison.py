@@ -174,7 +174,7 @@ def main():
     plotter.set_background('#FFFFFF')
 
     ground = pv.Plane(center=(0, 0, -0.05), direction=(0, 0, 1), i_size=forest_size * 1.3, j_size=forest_size * 1.3)
-    plotter.add_mesh(ground, color='#345318', lighting=True)
+    plotter.add_mesh(ground, color='#C4A482', lighting=True)
 
     mesh_branches = pv.PolyData(points, lines=lines)
     mesh_branches.point_data['thickness'] = thicknesses * 0.45
@@ -267,9 +267,9 @@ def main():
             
             for i, root in enumerate(forest_roots):
                 tree_exposure = multipliers[i]
-                # Flexion dynamique plus mesurée (arbres plus rigides)
-                tree_sway = math.sin(t * 2.5 + phases[i]) * 0.05 + (stress_level * 1.1 * tree_exposure)
-                bend_angle = min(0.15, tree_sway) # Angle maximal limité à ~8.5 degrés
+                # Flexion dynamique bien visible et naturelle (~11 degrés max)
+                tree_sway = math.sin(t * 2.2 + phases[i]) * 0.08 + (stress_level * 1.4 * tree_exposure)
+                bend_angle = min(0.19, tree_sway)
                 
                 c_b, s_b = math.cos(bend_angle), math.sin(bend_angle)
                 R_bend = np.array([
@@ -282,7 +282,7 @@ def main():
                 def apply_ai_flex(seg, R_parent, depth=0):
                     seg.absolute_R = R_parent @ seg.R_base
                     for ch in seg.children:
-                        extra_sway = math.sin(t * 4.0 + depth) * 0.02 if not ch.children else 0.0
+                        extra_sway = math.sin(t * 3.0 + depth * 0.8) * 0.03 if not ch.children else 0.01
                         R_extra = np.eye(3)
                         if extra_sway != 0:
                             R_extra[0, 0] = math.cos(extra_sway)
