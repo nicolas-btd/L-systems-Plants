@@ -1,2 +1,7 @@
 numpy>=1.20.0
 matplotlib>=3.3.0
+pyvista>=0.40.0
+torch>=2.0.0
+scikit-learn>=1.2.0
+pandas>=2.0.0
+tqdm>=4.60.0
