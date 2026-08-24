@@ -18,7 +18,7 @@ This project was born out of personal curiosity and a desire to connect mathemat
 - **Discovery of L-Systems**: A fascination with Lindenmayer Systems—how simple formal rewriting rules can produce elegant, organic, and self-similar fractal patterns found in nature.
 - **Applying to Real Trees**: The desire to take this mathematical concept further and apply it to concrete, recognizable living structures like trees.
 - **Simulating Wind Forces**: The ambition to bring these procedural creations to life by modeling their dynamic motion and physical response under wind gusts.
-- **Procedural Generation in Video Games & AI as a Necessity**: The ambition to bring these procedural L-System forests into video games and interactive virtual worlds. Because traditional numerical physics calculations are far too demanding to maintain a 60 FPS frame rate in real time, turning to Artificial Intelligence became a vital necessity: using Deep Learning to emulate complex structural physics instantly, making dynamic and responsive forests truly usable in video game engines.
+- **Procedural Generation in Video Games & AI as a Necessity**: The ambition to bring these procedural L-System forests into video games and interactive virtual worlds. Because traditional numerical physics calculations are far too demanding to maintain a 60 FPS frame rate in real time, turning to Artificial Intelligence became a necessity: using Deep Learning to emulate complex structural physics instantly, making dynamic and responsive forests truly usable in video game engines.
 
 ---
 

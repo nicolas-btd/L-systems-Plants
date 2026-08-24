@@ -1,6 +1,6 @@
 """
-Architecture du Réseau de Neurones Surrogate (Émulateur IA) Physics-Informed.
-Intègre la modélisation de la traînée quadratique et des projections vectorielles.
+Architecture du Réseau de Neurones Surrogate (ResMLP) à guide physique (Physics-Guided ML).
+Intègre l'encodage de la traînée aérodynamique quadratique (v^2), des projections trigonométriques et de la densité de peuplement.
 """
 
 import numpy as np
@@ -109,7 +109,7 @@ TARGET_COLUMNS = [
 
 def extract_physics_features(df):
     """
-    Enrichit le dataframe avec des descripteurs physiques explicites (Physics-Informed ML).
+    Enrichit le DataFrame avec des descripteurs physiques explicites (Physics-Guided Feature Engineering).
     """
     df_feat = df.copy()
     angles_rad = np.radians(df_feat["wind_angle_deg"].values)
