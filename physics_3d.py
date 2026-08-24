@@ -112,6 +112,14 @@ class PhysicsEngine3D:
             damping_factor = segment.damping / segment.inertia
             segment.omega = (segment.omega + angular_accel * self.dt) / (1.0 + damping_factor * self.dt)
             segment.theta += segment.omega * self.dt
+            
+            # Clamping réaliste de l'élasticité du bois : une articulation ne peut pas plier à l'infini
+            # Limite physique biologique : ~0.08 rad (~4.5 degrés par segment)
+            theta_norm = np.linalg.norm(segment.theta)
+            max_bend = 0.08
+            if theta_norm > max_bend:
+                segment.theta = (segment.theta / theta_norm) * max_bend
+                segment.omega *= 0.5  # Amortissement aux butées élastiques
         
         for child in segment.children:
             self.update_segment(child, current_time, wind_params, wind_multiplier, phase_offset)
