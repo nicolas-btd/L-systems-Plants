@@ -213,8 +213,8 @@ mesh_leaves = pv.PolyData(leaf_points)
 mesh_leaves['orient'] = np.array(leaf_orient_list, dtype=np.float32)
 mesh_leaves.active_vectors_name = 'orient'
 
-# Forme géométrique d'une vraie petite feuille (sphère aplatie)
-base_leaf = pv.Sphere(theta_resolution=5, phi_resolution=5, radius=0.65)
+# Forme géométrique d'une vraie petite feuille (sphère aplatie optimisée)
+base_leaf = pv.Sphere(theta_resolution=4, phi_resolution=4, radius=0.65)
 base_leaf.points[:, 2] *= 0.15 # Forme de feuille plate et ovale
 
 # Génération initiale des feuilles
@@ -227,12 +227,10 @@ plotter.set_background('#87ceeb') # Bleu ciel
 ground = pv.Plane(center=(0, 0, 0), direction=(0, 0, 1), i_size=FOREST_SIZE * 1.2, j_size=FOREST_SIZE * 1.2)
 plotter.add_mesh(ground, color='#3c5a14', lighting=True)
 
-# On génère des tubes 3D réels pour le tronc, dont le rayon dépend de l'épaisseur physique
+# On génère des tubes 3D pour le tronc
+mesh_tubes = mesh_branches.tube(scalars='thickness', absolute=True, n_sides=8)
 
-mesh_tubes = mesh_branches.tube(scalars='thickness', absolute=True, n_sides=12)
-
-# On dessine les branches (vrais tubes 3D lissés)
-
+# On dessine les branches
 branches_actor = plotter.add_mesh(mesh_tubes, color='#4A3320', 
                                   show_scalar_bar=False, smooth_shading=True)
 
@@ -248,15 +246,12 @@ def update_points():
 
     leaf_points[:] = points[leaf_parent_indices * 2 + 1] + leaf_offsets
         
-    # On met à jour directement la mémoire vidéo
     mesh_branches.points = points
-
     mesh_leaves.points = leaf_points
     new_glyphs = mesh_leaves.glyph(geom=base_leaf, orient='orient', factor=1.0)
     leaf_actor.mapper.dataset = new_glyphs
     
-    # Recalcul des tubes du tronc pour qu'ils suivent le mouvement
-    new_tubes = mesh_branches.tube(scalars='thickness', absolute=True, n_sides=12)
+    new_tubes = mesh_branches.tube(scalars='thickness', absolute=True, n_sides=8)
     branches_actor.mapper.dataset = new_tubes
 
 # Première frame
@@ -267,32 +262,11 @@ update_points()
 plotter.camera_position = 'yz'
 plotter.camera.elevation = 15
 
-# ==========================================
-# 4. BOUCLE D'ANIMATION EN TEMPS RÉEL
-# ==========================================
-print("Démarrage de la simulation 3D fluide à 60 FPS (Fermez la fenêtre pour arrêter)...")
-current_time = 6.5
+plotter.show(interactive_update=True, auto_close=False)
 
-from wind_model import compute_wind_effects
-
-# Pré-calcul de l'aérodynamique
-wind_multipliers, wind_phases = compute_wind_effects(tree_positions, WIND_PARAMS["wind_dir"])
-
-def animation_callback(step):
-    global current_time
-    # Résolution de la physique
-    for _ in range(STEPS_PER_FRAME):
-        for root in forest_roots:
-            engine.update_kinematics(root, parent_R_abs=rot_y_up)
-        for i, root in enumerate(forest_roots):
-            engine.update_segment(root, current_time, WIND_PARAMS, wind_multiplier=wind_multipliers[i], phase_offset=wind_phases[i])
-        current_time += PHYSICS_DT
-        
-    # Mise à jour graphique
-    update_points()
-    # Le rendu est géré automatiquement par VTK
-
-duration_ms = max(1, int(FRAME_DT * 1000))
-plotter.add_timer_event(max_steps=1000000, duration=duration_ms, callback=animation_callback)
-
-plotter.show()
+step = 0
+while not getattr(plotter, '_closed', False):
+    animation_callback(step)
+    plotter.update()
+    step += 1
+    time.sleep(0.01)
