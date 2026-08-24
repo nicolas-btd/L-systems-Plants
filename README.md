@@ -54,3 +54,17 @@ En intégrant les turbulences directionnelles (oscillations du vent pendant la t
 Nous avons ensuite simulé une lisière étagée : planter des arbres plus jeunes et plus souples en bordure de la forêt (échelle 0.5 puis 0.75), pour protéger le cœur de la parcelle (échelle 1.0).
 - Le modèle confirme que la bordure étagée agit comme un "tremplin" aérodynamique. 
 - La lisière progressive réduit le stress moyen global de la forêt et abaisse le pic de stress subi par les arbres adultes, démontrant la pertinence de cette méthode de plantation pour limiter le déracinement des fûts de valeur.
+
+---
+
+## 5. Intelligence Artificielle & Émulation Temps Réel (AI for Science & Jeux Vidéo)
+
+Bien que le solveur physique (intégration numérique d'Euler pas à pas) soit mathématiquement rigoureux, il devient **trop coûteux en temps de calcul** dès que l'on simule des centaines d'arbres ou que l'on souhaite intégrer cette physique dans des **applications interactives et des jeux vidéo (60 FPS constants)**.
+
+### Objectif :
+Remplacer le calcul différentiel itératif par un **Émulateur par Réseau de Neurones (*Surrogate Model / Physics-Informed ML*)** capable d'estimer instantanément la flexion et le stress mécanique de chaque arbre sous n'importe quelle tempête en moins d'une milliseconde.
+
+### Étape 1 : Moteur de Données Synthétiques (`ai_surrogate/dataset_generator.py`)
+- Le moteur physique 3D sert de **Jumeau Numérique (*Digital Twin*)** pour générer automatiquement des centaines de simulations variées (vitesses $15-45\,\text{m/s}$, angles $0-360^\circ$, turbulences, espacements, topologies).
+- Exécution massivement parallélisée sur l'ensemble des cœurs CPU (`ProcessPoolExecutor`) pour extraire les vérités terrain physiques (*Ground Truth*).
+
